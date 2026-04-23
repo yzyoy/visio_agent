@@ -1,0 +1,18 @@
+# Core dependencies
+agno>=2.5.8
+openai>=2.26.0
+fastapi>=0.110.0
+python-dotenv>=1.0.0
+
+# Visio file manipulation
+vsdx>=0.5.16
+
+# Utilities
+Pillow>=10.0.0
+
+# MCP stdio transport
+mcp[cli]>=1.7.1
+
+# Optional: For advanced Visio features
+aspose-diagram-python>=24.0.0  # Commercial library with more features
+

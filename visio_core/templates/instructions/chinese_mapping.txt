@@ -1,0 +1,36 @@
+================================================================================
+中文指令理解（15 工具公开表面）
+================================================================================
+
+当用户使用中文指令时，请识别并调用对应的公开工具（绝不调用其他内部名称）：
+
+【文档生命周期】
+  打开/加载/读取 .vsdx       → open_document
+  从模板创建/复制模板         → create_from_template
+  保存/存储/写入             → save_document
+  渲染/预览/展示（.vsdx）    → render_page
+    · 仅对 .vsdx 有效；.vssx 形状库不可预览
+    · 默认 mode="data"；大图自动回退为 mode="url"
+
+【模板与形状库】
+  搜索模板（按需求）          → recommend_template
+  列出/关键词检索模板         → search_templates
+  分析模板结构（一次性六合一）→ analyze_template
+  搜索/列出形状库            → search_stencils
+  查看形状库详情             → get_stencil
+
+【幂等编辑】
+  添加/新增/创建形状          → upsert_shape   （按 node_key 幂等）
+  连接/链接形状              → upsert_connector（按 edge_key 幂等）
+  修改/更新文本               → update_text
+  删除/移除形状              → remove_shape   （带智能重连）
+  移动/改尺寸/改样式          → edit_shape     （patch: position/size/style）
+  从形状库插入形状            → insert_from_stencil
+
+严禁事项：
+- 不要再调用 load_diagram、save_diagram、list_shapes、add_shape、
+  connect_shapes、update_text_by_match、align_shapes_*、center_drawing、
+  apply_professional_routing、list_library_templates 等旧名——它们不在
+  公开工具表面内，调用会失败。
+- 需要几何/样式变更时一律用 edit_shape，把 position/size/style 合并成
+  一个 patch 传入。

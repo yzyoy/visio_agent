@@ -1,0 +1,106 @@
+# =============================================================================
+# Keep source & data separate from runtime state & artifacts.
+# Source stays tracked. Runtime state + generated outputs + secrets do not.
+# =============================================================================
+
+# -------- Python cache / build --------
+__pycache__/
+*.py[cod]
+$py.class
+*.egg
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.tox/
+.nox/
+pip-wheel-metadata/
+dmypy.json
+
+# -------- IDE / Editor --------
+.vscode/
+.idea/
+.github/
+.cursorignore
+*.swp
+*.swo
+*~
+
+# -------- CI / repo meta (local-only overrides) --------
+.github/local/
+copilot-instructions.md
+
+# -------- Virtual environments (not conda env dirs outside repo) --------
+.venv/
+venv/
+ENV/
+env/
+
+# -------- Secrets & environment --------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Commercial / local license files (e.g. Aspose); keep out of VCS
+*.lic
+
+# -------- Runtime state --------
+# All runtime state lives under .state/ (session DB, dialog context, logs).
+.state/
+!.state/.gitkeep
+
+# -------- Runtime DB / sessions (agno SqliteDb) --------
+*.db
+*.db-shm
+*.db-wal
+
+# -------- Test / coverage --------
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# -------- Logs & scratch --------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+.cache/
+scratch/
+local_data/
+
+# -------- Offline tooling (generated audit; see tools-offline/) --------
+refine/library_audit/
+
+# -------- Generated / temporary outputs --------
+outputs/
+!outputs/.gitkeep
+static/
+
+# -------- Large redistributables / data dumps --------
+*.zip
+
+# -------- OS noise --------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# -------- Jupyter --------
+.ipynb_checkpoints/
+
+# -------- Local wheel / package mirrors --------
+wheelhouse/
+wheels/
+
+# -------- Profiling --------
+*.prof
+
+# -------- Assets --------
+assets/templates/
