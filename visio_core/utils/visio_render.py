@@ -663,6 +663,153 @@ def render_vsdx_page_to_data_uri(
     return png_to_data_uri(png)
 
 
+# ---------------------------------------------------------------------------
+# Preview cache (outputs/Preview_pngs)
+# ---------------------------------------------------------------------------
+#
+# The interactive preview UI (visio_core/api/visio_preview.py) used to re-render
+# the source VSDX every time the user zoomed or toggled fit/actual view, since
+# both actions changed the ``scale`` query parameter and therefore the DPI.
+#
+# This is wasteful: zoom and view-mode are purely client-side concerns. We
+# render once at a fixed high-quality DPI, persist the PNG under
+# ``outputs/Preview_pngs/<sha1(path|page)>.png`` and reuse it for every
+# subsequent request for that (path, page) pair.
+#
+# The cache key intentionally excludes ``scale`` and the client's view mode
+# (fit_window vs. actual_size). This lets the UI scale the cached PNG via
+# CSS while *preserving* the user's chosen mode — moving the zoom slider no
+# longer forces a switch to actual_size, and no extra render hits the disk.
+#
+# Cache invalidation: if the source .vsdx file's mtime is newer than the
+# cached PNG's mtime, we re-render and overwrite the cache file. The
+# ``force`` flag lets callers bypass the cache explicitly.
+
+# Render scale used for the cached preview image. 2.0 ≈ 192 DPI — a good
+# balance between fidelity and file size for browser zoom up to ~3x.
+_PREVIEW_RENDER_SCALE = float(os.getenv("VISIO_PREVIEW_RENDER_SCALE", "2.0") or 2.0)
+
+
+def _preview_cache_dir() -> Path:
+    repo_root = _resolve_repo_root()
+    preview_dir = (repo_root / "outputs" / "Preview_pngs").resolve()
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    return preview_dir
+
+
+def _preview_cache_key(src: Path, page: int) -> str:
+    # mtime is intentionally NOT part of the key — the file's own mtime acts
+    # as the freshness marker (see render_and_cache_preview). This keeps the
+    # filename stable across edits so the browser can cache the URL.
+    return _sha1(f"{src}|{page}")
+
+
+def render_and_cache_preview(
+    vsdx_path: str,
+    page: int = 0,
+    scale: Optional[float] = None,
+    allowed_extra_path: Optional[str] = None,
+    force: bool = False,
+) -> dict:
+    """Render a VSDX page once and cache the PNG under ``outputs/Preview_pngs``.
+
+    Subsequent calls for the same ``(vsdx_path, page)`` reuse the cached PNG
+    without re-rendering, regardless of the requested ``scale`` (zoom and
+    fit/actual mode are handled by the client). The cache is invalidated
+    automatically when the source file is modified (compared via mtime).
+
+    Args:
+        vsdx_path: Path to the .vsdx file (must be under an allowed root).
+        page: 0-based page index.
+        scale: Render scale used **only on a cache miss**. Defaults to
+            ``VISIO_PREVIEW_RENDER_SCALE`` (2.0 ≈ 192 DPI).
+        allowed_extra_path: Additional path to whitelist beyond default roots.
+        force: If True, always re-render and overwrite the cache file.
+
+    Returns:
+        dict with keys:
+            - ``file``    : absolute path to the cached PNG
+            - ``key``     : stable cache key (sha1 of path|page)
+            - ``mtime``   : integer mtime of the cached PNG
+            - ``src_mtime``: integer mtime of the source VSDX
+            - ``cached``  : True if served from cache, False if (re)rendered
+            - ``bytes``   : raw PNG bytes (read once, returned for convenience)
+    """
+    src = Path(vsdx_path)
+    if not src.exists():
+        raise FileError("Visio file not found", filepath=vsdx_path)
+    src = src.resolve()
+
+    extra = Path(allowed_extra_path).resolve() if allowed_extra_path else None
+    if not _is_allowed_path(src, allowed_extra=extra):
+        roots = " | ".join(str(p) for p in _allowed_roots_abs())
+        raise FileError(
+            f"Access denied. Path must be under allowed roots: {roots}",
+            filepath=str(src),
+        )
+
+    preview_dir = _preview_cache_dir()
+    key = _preview_cache_key(src, page)
+    out_file = preview_dir / f"{key}.png"
+
+    src_mtime = int(src.stat().st_mtime)
+
+    if not force and out_file.exists() and out_file.stat().st_size > 0:
+        cached_mtime = int(out_file.stat().st_mtime)
+        if cached_mtime >= src_mtime:
+            logger.debug(
+                "render_and_cache_preview: cache hit for %s page %d (%s)",
+                src.name, page, out_file.name,
+            )
+            return {
+                "file": str(out_file),
+                "key": key,
+                "mtime": cached_mtime,
+                "src_mtime": src_mtime,
+                "cached": True,
+                "bytes": out_file.read_bytes(),
+            }
+        logger.info(
+            "render_and_cache_preview: source %s changed (mtime %d > %d); "
+            "invalidating cached preview.",
+            src.name, src_mtime, cached_mtime,
+        )
+
+    render_scale = scale if scale is not None else _PREVIEW_RENDER_SCALE
+    try:
+        s = float(render_scale)
+    except Exception:
+        s = _PREVIEW_RENDER_SCALE
+    s = max(0.5, min(3.0, s))
+
+    png_bytes = render_vsdx_page_to_png(
+        vsdx_path=str(src),
+        page=page,
+        scale=s,
+        allowed_extra_path=allowed_extra_path,
+    )
+
+    out_file.write_bytes(png_bytes)
+    # Touch the file so its mtime reflects the moment we cached it (>= src_mtime).
+    try:
+        os.utime(out_file, None)
+    except Exception:
+        pass
+
+    logger.info(
+        "render_and_cache_preview: cached %s page %d -> %s (%d bytes, scale=%.2f)",
+        src.name, page, out_file.name, len(png_bytes), s,
+    )
+    return {
+        "file": str(out_file),
+        "key": key,
+        "mtime": int(out_file.stat().st_mtime),
+        "src_mtime": src_mtime,
+        "cached": False,
+        "bytes": png_bytes,
+    }
+
+
 def render_and_save_png(
     vsdx_path: str,
     page: int = 0,

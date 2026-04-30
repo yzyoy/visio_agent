@@ -22,6 +22,7 @@ dmypy.json
 # -------- IDE / Editor --------
 .vscode/
 .idea/
+*.code-workspace
 .github/
 .cursorignore
 *.swp
@@ -113,6 +114,7 @@ TODO.md
 MCP_CONTRACT.md
 scripts/
 tests/
+refine/
 
 # -------- Third-party clones (research deploy experiments) --------
 third_party/
