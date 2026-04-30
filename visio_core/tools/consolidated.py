@@ -79,20 +79,32 @@ def _build_edit_shape(visio_tools: "VisioTools") -> Callable:
         shape_id: str,
         patch: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """Update position, size and/or style of a shape in one call.
+        """Update text, node_key, position, size and/or style of a shape.
 
         Args:
             shape_id: The target shape's ID.
-            patch: A dict with any subset of ``{"position", "size",
-                "style"}``. ``position.relative=True`` applies the
-                offset via ``nudge_shape`` instead of absolute
-                positioning.
+            patch: A dict with any subset of
+                ``{"text", "node_key", "position", "size", "style"}``.
+
+                - ``text`` replaces the shape's display text.
+                - ``node_key`` assigns a stable key so the shape can be
+                  referenced by ``upsert_connector``.
+                - ``position.relative=True`` applies the offset via
+                  ``nudge_shape`` instead of absolute positioning.
 
         Returns:
             A single status line concatenating every sub-operation.
         """
         patch = patch or {}
         messages: List[str] = []
+
+        text_val = patch.get("text")
+        if text_val is not None:
+            messages.append(visio_tools.update_shape_text(shape_id, str(text_val)))
+
+        key_val = patch.get("node_key")
+        if key_val:
+            messages.append(visio_tools.set_node_key(shape_id, str(key_val)))
 
         pos = patch.get("position") or {}
         if pos:
@@ -182,34 +194,57 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
     def render_page(
         page: int = 0,
         scale: float = 2.0,
-        mode: str = "data",
+        mode: str = "url",
         filepath: Optional[str] = None,
     ) -> str:
-        """Render the current (or given) document page to an image.
+        """Render the current (or given) document page to a preview image.
+
+        Returns a markdown image string (``![](<src>)``) suitable for inline
+        display in chat UIs. Internally tries multiple rendering backends
+        (Microsoft Visio COM, Aspose.Diagram, LibreOffice+Poppler) so that the
+        tool works on Windows even when LibreOffice cannot render the VSDX.
 
         Args:
             page: Zero-based page index.
-            scale: Render scale factor.
-            mode: ``"data"`` returns an inline data URI (<120 KB),
-                ``"url"`` saves to ``static/visio`` and returns a
-                relative URL.
-            filepath: Optional override; defaults to the currently
+            scale: Render scale factor (1.0 ≈ 96 DPI; clamped to [0.5, 3.0]).
+            mode: ``"url"`` (default) saves the PNG under ``outputs/static/visio``
+                and returns a relative URL — recommended for any non-trivial
+                diagram. ``"data"`` returns an inline base64 data URI and
+                automatically falls back to URL mode if the payload would
+                exceed the chat-friendly size cap.
+            filepath: Optional path override; defaults to the currently
                 loaded document.
         """
-        from ..utils.visio_render import render_vsdx_page_to_data_uri, render_and_save_png
+        from ..utils.visio_render import (
+            render_and_save_png,
+            render_vsdx_page_to_data_uri,
+        )
 
         target = filepath or visio_tools.current_file_path
         if not target:
             return "✗ No document open. Call open_document first."
-        if mode == "url":
-            png_rel = render_and_save_png(target, page, scale=scale)
-            return f"✓ Rendered: /{png_rel}"
-        data_uri, _w, _h = render_vsdx_page_to_data_uri(target, page, scale=scale)
-        cap = getattr(visio_tools, "_max_inline_data_uri_chars", 120_000)
-        if data_uri and len(data_uri) > cap:
-            png_rel = render_and_save_png(target, page, scale=scale)
-            return f"✓ Rendered (too large for inline; URL): /{png_rel}"
-        return f"✓ Rendered: {data_uri}"
+
+        try:
+            if mode == "data":
+                data_uri = render_vsdx_page_to_data_uri(
+                    target, page, scale=scale, allowed_extra_path=target
+                )
+                cap = getattr(visio_tools, "_max_inline_data_uri_chars", 120_000)
+                if data_uri and len(data_uri) > cap:
+                    result = render_and_save_png(
+                        target, page, scale=scale, allowed_extra_path=target
+                    )
+                    url = result.get("absolute_url") or result.get("url")
+                    return f"✓ Rendered (data URI too large; using URL)\n\n![]({url})"
+                return f"✓ Rendered\n\n![]({data_uri})"
+
+            result = render_and_save_png(
+                target, page, scale=scale, allowed_extra_path=target
+            )
+            url = result.get("absolute_url") or result.get("url")
+            return f"✓ Rendered\n\n![]({url})"
+        except Exception as exc:
+            return f"✗ Render failed: {exc}"
 
     return render_page
 
@@ -243,7 +278,7 @@ def get_consolidated_tools(
     """
     return [
         # --- discovery / recommendation ---
-        _rename(prompt_tools.rank_templates_for_requirement, "recommend_template"),
+        _rename(prompt_tools.recommend_template, "recommend_template"),
         _rename(_build_search_templates(visio_tools), "search_templates"),
         _rename(prompt_tools.analyze_template_for_recommendation, "analyze_template"),
         # --- stencils ---

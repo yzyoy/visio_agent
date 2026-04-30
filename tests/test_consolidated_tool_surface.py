@@ -7,6 +7,7 @@ no longer in the consolidated surface and the change is a breaking one.
 """
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 
 import pytest
@@ -96,6 +97,19 @@ def test_agent_tools_match_consolidated_surface_exactly(tmp_path):
     consolidated = get_consolidated_tools(visio_tools, prompt_tools)
     assert len(agent_tools) == len(consolidated) == 15
     assert {t.__name__ for t in agent_tools} == EXPECTED_NAMES
+
+
+def test_recommend_template_signature_matches_skill_contract(tmp_path):
+    visio_tools, prompt_tools = _make_pair(tmp_path)
+    tools = {tool.__name__: tool for tool in get_consolidated_tools(visio_tools, prompt_tools)}
+    recommend = tools["recommend_template"]
+    params = inspect.signature(recommend).parameters
+
+    assert "requirement" in params, "recommend_template must accept a natural-language requirement"
+    assert "top_k" in params, "recommend_template must accept top_k"
+    assert "candidate_templates_json" not in params, (
+        "recommend_template must no longer expose the legacy candidate_templates_json argument"
+    )
 
 
 def test_diagnostic_and_session_tools_are_not_llm_facing(tmp_path):

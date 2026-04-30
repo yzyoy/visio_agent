@@ -19,6 +19,7 @@ Usage:
     # The patch is automatically applied on import
 """
 
+import threading
 import xml.etree.ElementTree as ET
 import math
 import uuid
@@ -26,6 +27,10 @@ import vsdx
 from vsdx.connectors import Connect
 from vsdx.shapes import Shape
 from typing import Optional, Tuple
+
+# Serialize connector creation: parallel tool calls share the same page XML; concurrent
+# Connect.create + orphan cleanup corrupts shapes another call is building.
+_connect_create_lock = threading.RLock()
 
 
 # Save the original method
@@ -313,68 +318,57 @@ def patched_create(page: vsdx.Page = None, from_shape: Shape = None, to_shape: S
     """
     if not (from_shape and to_shape):
         return _original_create(page, from_shape, to_shape)
-    
-    used_manual_creation = False
-    
-    # Snapshot shape IDs before calling original create, so we can detect
-    # and clean up any partially-created shapes if it fails midway.
-    ns_prefix = '{http://schemas.microsoft.com/office/visio/2012/main}'
-    shapes_container = page.xml.find(f'.//{ns_prefix}Shapes')
-    if shapes_container is None:
-        shapes_container = page.xml.find('.//Shapes')
-    pre_ids = set()
-    if shapes_container is not None:
-        pre_ids = {child.get('ID') for child in shapes_container if 'Shape' in child.tag}
-    
-    # Try to call original method, but handle the master_shape.page None error
-    try:
-        connector_shape = _original_create(page, from_shape, to_shape)
-    except (AttributeError, Exception) as e:
-        err_msg = str(e)
-        if ("'NoneType' object has no attribute 'page'" in err_msg
-                or "'NoneType' object has no attribute 'line_style_id'" in err_msg
-                or "master_shape" in err_msg.lower()):
-            # CRITICAL: _original_create partially succeeded via copy_shape(),
-            # which already appended a broken connector XML to the page.
-            # We must remove it before creating a proper one manually.
+
+    with _connect_create_lock:
+        used_manual_creation = False
+
+        ns_prefix = '{http://schemas.microsoft.com/office/visio/2012/main}'
+        shapes_container = page.xml.find(f'.//{ns_prefix}Shapes')
+        if shapes_container is None:
+            shapes_container = page.xml.find('.//Shapes')
+        pre_ids: set = set()
+        if shapes_container is not None:
+            pre_ids = {child.get('ID') for child in shapes_container if 'Shape' in child.tag}
+
+        connector_shape = None
+        try:
+            connector_shape = _original_create(page, from_shape, to_shape)
+        except Exception as e:
+            # Remove any shapes appended after pre_ids snapshot, then fall back.
             if shapes_container is not None:
-                orphans = []
-                for child in shapes_container:
+                for child in list(shapes_container):
                     if 'Shape' in child.tag and child.get('ID') not in pre_ids:
-                        orphans.append(child)
-                for orphan in orphans:
-                    shapes_container.remove(orphan)
-                    print(f"Cleaned up partially-created connector shape ID={orphan.get('ID')}")
-            
-            print(f"Warning: vsdx library master_shape error, creating connector manually")
+                        shapes_container.remove(child)
+                        print(f"Cleaned up partially-created connector shape ID={child.get('ID')}")
+            print(f"Warning: vsdx Connect.create failed ({type(e).__name__}: {e}), creating connector manually")
             connector_shape = _create_connector_manually(page, from_shape, to_shape)
             used_manual_creation = True
-        else:
-            raise
-    
-    if connector_shape is None:
-        return None
-    
-    # Only add supplemental Y connections when the original library method
-    # succeeded; _create_connector_manually already creates all four entries.
-    if not used_manual_creation:
-        # BeginY connection (missing from original vsdx library)
-        beg_y_connect_xml = (
-            f'<Connect xmlns="http://schemas.microsoft.com/office/visio/2012/main" '
-            f'FromSheet="{connector_shape.ID}" FromCell="BeginY" FromPart="9" '
-            f'ToSheet="{from_shape.ID}" ToCell="PinY" ToPart="3"/>'
-        )
-        page.add_connect(Connect(xml=ET.fromstring(beg_y_connect_xml), page=page))
-        
-        # EndY connection (missing from original vsdx library)
-        end_y_connect_xml = (
-            f'<Connect xmlns="http://schemas.microsoft.com/office/visio/2012/main" '
-            f'FromSheet="{connector_shape.ID}" FromCell="EndY" FromPart="12" '
-            f'ToSheet="{to_shape.ID}" ToCell="PinY" ToPart="3"/>'
-        )
-        page.add_connect(Connect(xml=ET.fromstring(end_y_connect_xml), page=page))
-    
-    return connector_shape
+
+        if connector_shape is None and not used_manual_creation:
+            connector_shape = _create_connector_manually(page, from_shape, to_shape)
+            used_manual_creation = True
+
+        if connector_shape is None:
+            return None
+
+        # Only add supplemental Y connections when the original library method
+        # succeeded; _create_connector_manually already creates all four entries.
+        if not used_manual_creation:
+            beg_y_connect_xml = (
+                f'<Connect xmlns="http://schemas.microsoft.com/office/visio/2012/main" '
+                f'FromSheet="{connector_shape.ID}" FromCell="BeginY" FromPart="9" '
+                f'ToSheet="{from_shape.ID}" ToCell="PinY" ToPart="3"/>'
+            )
+            page.add_connect(Connect(xml=ET.fromstring(beg_y_connect_xml), page=page))
+
+            end_y_connect_xml = (
+                f'<Connect xmlns="http://schemas.microsoft.com/office/visio/2012/main" '
+                f'FromSheet="{connector_shape.ID}" FromCell="EndY" FromPart="12" '
+                f'ToSheet="{to_shape.ID}" ToCell="PinY" ToPart="3"/>'
+            )
+            page.add_connect(Connect(xml=ET.fromstring(end_y_connect_xml), page=page))
+
+        return connector_shape
 
 
 # Apply the patch

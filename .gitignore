@@ -33,6 +33,8 @@ dmypy.json
 copilot-instructions.md
 
 # -------- Virtual environments (not conda env dirs outside repo) --------
+# Local temp used by scripts/activate-agent.ps1 to avoid Windows %TEMP% conda lock races
+.conda-tmp/
 .venv/
 venv/
 ENV/
@@ -48,7 +50,7 @@ env/
 *.lic
 
 # -------- Runtime state --------
-# All runtime state lives under .state/ (session DB, dialog context, logs).
+# All runtime state lives under .state/ (Agno DB, dialog context, operation logs).
 .state/
 !.state/.gitkeep
 
@@ -70,6 +72,7 @@ coverage.xml
 logs/
 tmp/
 temp/
+_t/
 *.tmp
 .cache/
 scratch/
@@ -104,3 +107,13 @@ wheels/
 
 # -------- Assets --------
 assets/templates/
+
+# -------- Local-only paths --------
+TODO.md
+MCP_CONTRACT.md
+scripts/
+tests/
+
+# -------- Third-party clones (research deploy experiments) --------
+third_party/
+Visio_agent/

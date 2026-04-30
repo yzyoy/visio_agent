@@ -3,12 +3,15 @@ Prompt generation tools for Visio diagram creation
 Handles template recommendation and prompt generation
 """
 import json
+import os
 import re
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from typing import Any as _Any
 
 from ..templates.template_manager import TemplateManager
 from ..utils.smart_matcher import SmartMatcher
+from ..utils.shape_identity import get_shape_prop
 
 
 class PromptTools:
@@ -62,6 +65,120 @@ class PromptTools:
         library never imports agno.
         """
         self.model = model
+
+    def _preview_markdown(self, template_path: str) -> str:
+        filename = os.path.basename(template_path)
+        return f"[{filename}](http://localhost:7777/api/visio/preview?path={template_path})"
+
+    def _build_basic_recommendations(
+        self,
+        items: List[Dict[str, Any]],
+        search_type: str,
+        top_k: int,
+    ) -> List[Dict[str, Any]]:
+        recommendations: List[Dict[str, Any]] = []
+        base_dir = "assets/templates/library" if search_type == "template" else "assets/templates/stencils"
+
+        for index, item in enumerate(items[:top_k], 1):
+            path = item.get("path") or item.get("full_path") or ""
+            if not path:
+                path = f"{base_dir}/{item.get('filename', '')}".rstrip("/")
+
+            recommendation = {
+                "rank": index,
+                "filename": item.get("filename", ""),
+                "path": path,
+                "score": round(float(item.get("llm_score", item.get("match_score", item.get("combined_score", 0))) or 0), 3),
+                "description": item.get("structure_description", item.get("description", "")),
+            }
+            if search_type == "template":
+                recommendation["preview"] = self._preview_markdown(path)
+            recommendations.append(recommendation)
+
+        return recommendations
+
+    def _build_recommendation_payload(
+        self,
+        *,
+        user_requirement: str,
+        search_type: str,
+        keywords: List[str],
+        recommendations: List[Dict[str, Any]],
+        warnings: List[str],
+        fallback_used: bool,
+        error_code: Optional[str],
+    ) -> Dict[str, Any]:
+        search_type_name = "模板" if search_type == "template" else "形状库"
+        status = "ok"
+        if error_code and not recommendations:
+            status = "error"
+        elif warnings or fallback_used:
+            status = "warning"
+
+        payload = {
+            "status": status,
+            "search_type": search_type,
+            "requirement": user_requirement,
+            "keywords": keywords,
+            "recommendations": recommendations,
+            "warnings": warnings,
+            "fallback_used": fallback_used,
+            "error_code": error_code,
+            # Backward-compatible fields for existing chat flows.
+            "搜索类型": search_type_name,
+            "推荐列表": recommendations,
+        }
+        return payload
+
+    def _keyword_fallback_payload(
+        self,
+        *,
+        user_requirement: str,
+        search_type: str,
+        top_k: int,
+        reason: str,
+        error_code: Optional[str],
+    ) -> Dict[str, Any]:
+        keywords = self._extract_keywords(user_requirement)
+        warnings = [reason]
+
+        if search_type == "template":
+            results = self.template_manager.search_templates(keywords=keywords)
+            if not results:
+                results = [
+                    {"filename": filename, **info}
+                    for filename, info in self.template_manager.library.items()
+                ]
+            if not results:
+                warnings.append("Template library is empty.")
+                error_code = error_code or "LIBRARY_EMPTY"
+        else:
+            from ..templates.stencil_manager import StencilManager
+
+            stencil_manager = StencilManager()
+            results = stencil_manager.search_stencils(keywords=keywords)
+            if not results:
+                warnings.append("No stencil candidates matched the fallback search.")
+
+        recommendations = self._build_basic_recommendations(results, search_type, top_k)
+        if not recommendations and error_code is None:
+            error_code = "LIBRARY_EMPTY" if search_type == "template" else None
+
+        return self._build_recommendation_payload(
+            user_requirement=user_requirement,
+            search_type=search_type,
+            keywords=keywords,
+            recommendations=recommendations,
+            warnings=warnings,
+            fallback_used=True,
+            error_code=error_code,
+        )
+
+    def _tool_call_status(self, result: str) -> Dict[str, Any]:
+        message = result or ""
+        stripped = message.lstrip()
+        success = bool(stripped) and not stripped.startswith("✗")
+        return {"success": success, "message": message}
     
     # ========== 6-Step Template Analysis Tools (Direct Wrappers) ==========
     # These tools provide direct access to Visio analysis functions
@@ -210,6 +327,43 @@ class PromptTools:
     
     # ========== End of 6-Step Analysis Tools ==========
     
+    def recommend_template(self, requirement: str, top_k: int = 5) -> str:
+        """Recommend templates from a natural-language requirement.
+
+        This is the canonical LLM-facing recommendation surface used by the
+        consolidated 15-tool contract. It prefers the SmartMatcher semantic
+        path and degrades into a structured keyword fallback when the model is
+        unavailable or the semantic path fails.
+        """
+        if self.model:
+            try:
+                result = self.smart_matcher.smart_match(
+                    requirement,
+                    self.model,
+                    search_type="template",
+                    top_k=top_k,
+                )
+                return json.dumps(result, ensure_ascii=False, indent=2)
+            except Exception as exc:
+                print(f"⚠ recommend_template semantic path failed, using fallback: {exc}")
+                fallback = self._keyword_fallback_payload(
+                    user_requirement=requirement,
+                    search_type="template",
+                    top_k=top_k,
+                    reason=f"Semantic recommendation failed: {exc}",
+                    error_code="MODEL_UNAVAILABLE",
+                )
+                return json.dumps(fallback, ensure_ascii=False, indent=2)
+
+        fallback = self._keyword_fallback_payload(
+            user_requirement=requirement,
+            search_type="template",
+            top_k=top_k,
+            reason="No LLM model configured for semantic recommendation; using keyword fallback.",
+            error_code="MODEL_UNAVAILABLE",
+        )
+        return json.dumps(fallback, ensure_ascii=False, indent=2)
+
     def search_templates_by_requirement(self, user_requirement: str, use_smart_match: bool = True) -> str:
         """
         根据用户需求搜索匹配的模板（支持智能匹配）
@@ -226,41 +380,17 @@ class PromptTools:
             搜索模板("我想画一个用户登录的流程图")
             search_templates_by_requirement("I want to create a user login flowchart")
         """
-        # Use smart matching if model is available and enabled
-        if use_smart_match and self.model:
-            try:
-                result = self.smart_matcher.smart_match(
-                    user_requirement,
-                    self.model,
-                    search_type="template",
-                    top_k=5
-                )
-                return json.dumps(result, ensure_ascii=False, indent=2)
-            except Exception as e:
-                print(f"⚠ 智能匹配失败，回退到基础匹配: {e}")
-        
-        # Fallback to basic keyword matching
-        keywords = self._extract_keywords(user_requirement)
-        results = self.template_manager.search_templates(keywords=keywords)
-        
-        if not results:
-            # If no results, return all templates
-            results = []
-            for filename, info in self.template_manager.library.items():
-                results.append({
-                    'filename': filename,
-                    **info
-                })
-        
-        # Format results in Chinese
-        output = {
-            '用户需求': user_requirement,
-            '提取的关键词': keywords,
-            '匹配的模板': results,
-            '找到结果数': len(results)
-        }
-        
-        return json.dumps(output, ensure_ascii=False, indent=2)
+        if use_smart_match:
+            return self.recommend_template(user_requirement, top_k=5)
+
+        fallback = self._keyword_fallback_payload(
+            user_requirement=user_requirement,
+            search_type="template",
+            top_k=5,
+            reason="Smart match disabled; using keyword fallback.",
+            error_code=None,
+        )
+        return json.dumps(fallback, ensure_ascii=False, indent=2)
     
     def rank_templates_for_requirement(self, user_requirement: str,
                                       candidate_templates_json: str) -> str:
@@ -516,95 +646,288 @@ class PromptTools:
             analyze_template_for_recommendation("architecture_cloud.vsdx", cleanup=False)
         """
         from ..tools.visio_tools import VisioTools
-        import os
         import tempfile
-        
-        analysis_result = {
-            '模板路径': template_path,
-            '分析状态': {},
-            '元数据信息': {},
-            '图表信息': {},
-            '形状分析': {},
-            '连接分析': {},
-            '位置分析': {},
-            '推荐依据': {}
+
+        analysis_result: Dict[str, Any] = {
+            "status": "ok",
+            "partial": False,
+            "template_path": template_path,
+            "warnings": [],
+            "error_code": None,
+            "info": {},
+            "shapes": [],
+            "connections": [],
+            "positions": [],
+            "groups": [],
+            "topology": {},
+            # Backward-compatible fields for existing consumers.
+            "模板路径": template_path,
+            "分析状态": {},
+            "元数据信息": {},
+            "图表信息": {},
+            "形状分析": {},
+            "连接分析": {},
+            "位置分析": {},
+            "推荐依据": {},
         }
-        
-        # Create temporary VisioTools instance for analysis
-        visio_tools = VisioTools()
+
+        visio_tools = VisioTools(auto_restore=False, record_context=False)
         temp_output = None
-        
+
         try:
-            # Step 1: Get template metadata
-            analysis_result['分析状态']['步骤1_元数据提取'] = '进行中'
             metadata_str = visio_tools.get_template_info(template_path)
-            analysis_result['元数据信息'] = self._parse_template_info(metadata_str)
-            analysis_result['分析状态']['步骤1_元数据提取'] = '完成'
-            
-            # Step 2: Load template for analysis (create temporary output)
-            analysis_result['分析状态']['步骤2_加载模板'] = '进行中'
+            metadata_status = self._tool_call_status(metadata_str)
+            analysis_result["分析状态"]["步骤1_元数据提取"] = "完成" if metadata_status["success"] else metadata_status["message"]
+            analysis_result["元数据信息"] = self._parse_template_info(metadata_str)
+
             temp_output = os.path.join(tempfile.gettempdir(), f"temp_analysis_{os.path.basename(template_path)}")
             load_result = visio_tools.create_from_template_and_load(template_path, temp_output)
-            
-            if '✓' not in load_result:
-                analysis_result['分析状态']['步骤2_加载模板'] = f'失败: {load_result}'
+            load_status = self._tool_call_status(load_result)
+            analysis_result["分析状态"]["步骤2_加载模板"] = "完成" if load_status["success"] else load_status["message"]
+            if not load_status["success"]:
+                analysis_result["status"] = "error"
+                analysis_result["partial"] = True
+                analysis_result["error_code"] = "FILE_NOT_FOUND"
+                analysis_result["warnings"].append(load_status["message"])
                 return json.dumps(analysis_result, ensure_ascii=False, indent=2)
-            
-            # CRITICAL: Reload the diagram to ensure proper initialization
+
             reload_result = visio_tools.load_diagram(temp_output)
-            if '✓' not in reload_result:
-                analysis_result['分析状态']['步骤2_重新加载'] = f'失败: {reload_result}'
+            reload_status = self._tool_call_status(reload_result)
+            analysis_result["分析状态"]["步骤2_重新加载"] = "完成" if reload_status["success"] else reload_status["message"]
+            if not reload_status["success"]:
+                analysis_result["status"] = "error"
+                analysis_result["partial"] = True
+                analysis_result["error_code"] = "PARSE_FAILED"
+                analysis_result["warnings"].append(reload_status["message"])
                 return json.dumps(analysis_result, ensure_ascii=False, indent=2)
-            
-            analysis_result['分析状态']['步骤2_加载模板'] = '完成'
-            
-            # Step 3: Get diagram info
-            analysis_result['分析状态']['步骤3_图表信息'] = '进行中'
-            diagram_info_str = visio_tools.get_diagram_info()
-            analysis_result['图表信息'] = self._parse_diagram_info(diagram_info_str)
-            analysis_result['分析状态']['步骤3_图表信息'] = '完成'
-            
-            # Step 4: List all shapes
-            analysis_result['分析状态']['步骤4_形状列表'] = '进行中'
-            shapes_str = visio_tools.list_shapes()
-            analysis_result['形状分析'] = self._parse_shapes_info(shapes_str)
-            analysis_result['分析状态']['步骤4_形状列表'] = '完成'
-            
-            # Step 5: Analyze connections
-            analysis_result['分析状态']['步骤5_连接分析'] = '进行中'
-            connections_str = visio_tools.analyze_diagram_connections()
-            analysis_result['连接分析'] = self._parse_connections_info(connections_str)
-            analysis_result['分析状态']['步骤5_连接分析'] = '完成'
-            
-            # Step 6: Extract positioning data
-            analysis_result['分析状态']['步骤6_位置分析'] = '进行中'
-            position_str = visio_tools.list_position()
-            analysis_result['位置分析'] = self._parse_position_info(position_str)
-            analysis_result['分析状态']['步骤6_位置分析'] = '完成'
-            
-            # Generate recommendation logic summary
-            analysis_result['推荐依据'] = self._generate_recommendation_logic(
-                analysis_result['形状分析'],
-                analysis_result['连接分析'],
-                analysis_result['位置分析']
+
+            builder = visio_tools.diagram_builder
+            if not builder or not builder.current_page:
+                analysis_result["status"] = "error"
+                analysis_result["partial"] = True
+                analysis_result["error_code"] = "PARSE_FAILED"
+                analysis_result["warnings"].append("Template loaded but no active page was available for analysis.")
+                return json.dumps(analysis_result, ensure_ascii=False, indent=2)
+
+            diagram_info = builder.get_diagram_info()
+            flat_shapes, group_tree = self._collect_shapes_and_groups(
+                list(getattr(builder.current_page, "child_shapes", []) or [])
             )
-            
-            analysis_result['分析状态']['总体状态'] = '成功完成'
-            
-        except Exception as e:
-            analysis_result['分析状态']['错误'] = str(e)
-            analysis_result['分析状态']['总体状态'] = '失败'
-        
+            connections_analysis = builder.analyze_diagram_connections(include_connectors=True)
+
+            analysis_result["info"] = {
+                "template_path": template_path,
+                "pages": diagram_info.get("pages", []),
+                "current_page": diagram_info.get("current_page"),
+                "shapes_count": len(flat_shapes),
+                "connector_count": diagram_info.get("connector_count", 0),
+                "metadata": analysis_result["元数据信息"],
+            }
+            analysis_result["shapes"] = flat_shapes
+            analysis_result["positions"] = [
+                {
+                    "id": shape["id"],
+                    "node_key": shape.get("node_key"),
+                    "x": shape.get("x"),
+                    "y": shape.get("y"),
+                    "width": shape.get("width"),
+                    "height": shape.get("height"),
+                    "parent_group_id": shape.get("parent_group_id"),
+                }
+                for shape in flat_shapes
+            ]
+            analysis_result["groups"] = group_tree
+
+            shapes_by_id = {shape["id"]: shape for shape in flat_shapes}
+            if connections_analysis.get("error"):
+                analysis_result["partial"] = True
+                analysis_result["status"] = "warning"
+                analysis_result["warnings"].append(
+                    f"Connection analysis degraded: {connections_analysis['error']}"
+                )
+                analysis_result["error_code"] = "PARSE_FAILED"
+            else:
+                analysis_result["connections"] = self._canonicalize_connections(
+                    connections_analysis.get("connectors", []),
+                    shapes_by_id,
+                )
+                analysis_result["topology"] = {
+                    "page_name": connections_analysis.get("page_name"),
+                    "statistics": connections_analysis.get("statistics", {}),
+                    "connection_graph": connections_analysis.get("connection_graph", {}),
+                    "group_count": len(group_tree),
+                    "has_groups": bool(group_tree),
+                }
+
+            if not analysis_result["shapes"]:
+                analysis_result["partial"] = True
+                analysis_result["status"] = "warning"
+                analysis_result["warnings"].append("No shapes were detected in the analyzed template.")
+
+            analysis_result["图表信息"] = {
+                "页数": len(analysis_result["info"]["pages"]),
+                "当前页": analysis_result["info"]["current_page"],
+                "形状数量": analysis_result["info"]["shapes_count"],
+                "连接器数量": analysis_result["info"]["connector_count"],
+            }
+            analysis_result["形状分析"] = {
+                "形状总数": len(flat_shapes),
+                "形状类型分布": self._count_shape_types(flat_shapes),
+                "连接器数量": analysis_result["info"]["connector_count"],
+                "分组数量": len(group_tree),
+            }
+            analysis_result["连接分析"] = {
+                "连接总数": len(analysis_result["connections"]),
+                "连接模式": "结构化分析",
+                "拓扑类型": self._infer_topology_labels(analysis_result["topology"].get("statistics", {})),
+                "连接特征": [],
+            }
+            analysis_result["位置分析"] = {
+                "布局模式": "结构化分析",
+                "对齐方式": [],
+                "间距特征": {},
+                "布局方向": self._infer_layout_direction(flat_shapes),
+            }
+            analysis_result["推荐依据"] = self._generate_recommendation_logic(
+                analysis_result["形状分析"],
+                analysis_result["连接分析"],
+                analysis_result["位置分析"],
+            )
+            analysis_result["分析状态"]["总体状态"] = "成功完成" if analysis_result["status"] == "ok" else "部分完成"
+
+        except Exception as exc:
+            analysis_result["status"] = "error"
+            analysis_result["partial"] = True
+            analysis_result["error_code"] = "PARSE_FAILED"
+            analysis_result["分析状态"]["错误"] = str(exc)
+            analysis_result["分析状态"]["总体状态"] = "失败"
+            analysis_result["warnings"].append(f"Analysis failed: {exc}")
+
         finally:
-            # Cleanup temporary files if requested
             if cleanup and temp_output and os.path.exists(temp_output):
                 try:
                     os.remove(temp_output)
-                    analysis_result['分析状态']['清理'] = '已清理临时文件'
-                except:
-                    pass
-        
+                    analysis_result["分析状态"]["清理"] = "已清理临时文件"
+                except Exception as exc:
+                    analysis_result["partial"] = True
+                    if analysis_result["status"] == "ok":
+                        analysis_result["status"] = "warning"
+                    analysis_result["warnings"].append(f"Temporary cleanup failed: {exc}")
+
         return json.dumps(analysis_result, ensure_ascii=False, indent=2)
+
+    def _shape_snapshot(self, shape: Any, parent_group_id: Optional[str] = None) -> Dict[str, Any]:
+        shape_id = str(getattr(shape, "ID", ""))
+        text = (getattr(shape, "text", "") or "").strip()
+        shape_type = getattr(shape, "shape_type", "") or "Unknown"
+        master = getattr(shape, "master", None)
+        if shape_type == "Unknown" and master is not None:
+            shape_type = getattr(master, "name", "") or "Unknown"
+
+        x = getattr(shape, "x", None)
+        y = getattr(shape, "y", None)
+        width = getattr(shape, "width", None)
+        height = getattr(shape, "height", None)
+        return {
+            "id": shape_id,
+            "text": text,
+            "node_key": get_shape_prop(shape, "NodeKey") or "",
+            "type": shape_type,
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+            "parent_group_id": parent_group_id,
+            "is_group": bool(getattr(shape, "shape_type", "").lower() == "group" and hasattr(shape, "child_shapes")),
+        }
+
+    def _collect_shapes_and_groups(
+        self,
+        shapes: List[Any],
+        parent_group_id: Optional[str] = None,
+    ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        flat_shapes: List[Dict[str, Any]] = []
+        groups: List[Dict[str, Any]] = []
+
+        for shape in shapes:
+            snapshot = self._shape_snapshot(shape, parent_group_id=parent_group_id)
+            flat_shapes.append(snapshot)
+            if snapshot["is_group"]:
+                child_flat, child_groups = self._collect_shapes_and_groups(
+                    list(getattr(shape, "child_shapes", []) or []),
+                    parent_group_id=snapshot["id"],
+                )
+                flat_shapes.extend(child_flat)
+                groups.append(
+                    {
+                        "id": snapshot["id"],
+                        "text": snapshot["text"],
+                        "node_key": snapshot["node_key"],
+                        "child_shape_ids": [
+                            child["id"]
+                            for child in child_flat
+                            if child.get("parent_group_id") == snapshot["id"]
+                        ],
+                        "children": child_groups,
+                    }
+                )
+
+        return flat_shapes, groups
+
+    def _canonicalize_connections(
+        self,
+        connectors: List[Dict[str, Any]],
+        shapes_by_id: Dict[str, Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        canonical = []
+        for connector in connectors:
+            from_shape_id = connector.get("from_shape_id")
+            to_shape_id = connector.get("to_shape_id")
+            canonical.append(
+                {
+                    "connector_id": connector.get("connector_id"),
+                    "label": connector.get("connector_text", ""),
+                    "from_shape_id": from_shape_id,
+                    "to_shape_id": to_shape_id,
+                    "from_node_key": shapes_by_id.get(str(from_shape_id), {}).get("node_key", ""),
+                    "to_node_key": shapes_by_id.get(str(to_shape_id), {}).get("node_key", ""),
+                    "from_text": connector.get("from_shape_text", ""),
+                    "to_text": connector.get("to_shape_text", ""),
+                }
+            )
+        return canonical
+
+    def _count_shape_types(self, flat_shapes: List[Dict[str, Any]]) -> Dict[str, int]:
+        counts: Dict[str, int] = {}
+        for shape in flat_shapes:
+            shape_type = shape.get("type", "Unknown") or "Unknown"
+            counts[shape_type] = counts.get(shape_type, 0) + 1
+        return counts
+
+    def _infer_topology_labels(self, statistics: Dict[str, Any]) -> List[str]:
+        labels: List[str] = []
+        total_connections = statistics.get("total_connections", 0)
+        isolated_shapes = statistics.get("isolated_shapes", 0)
+        if total_connections == 0:
+            labels.append("孤立节点")
+        if statistics.get("shapes_with_both", 0):
+            labels.append("线性流程")
+        if isolated_shapes == 0 and total_connections:
+            labels.append("连通结构")
+        return labels or ["通用型"]
+
+    def _infer_layout_direction(self, flat_shapes: List[Dict[str, Any]]) -> str:
+        xs = [shape["x"] for shape in flat_shapes if isinstance(shape.get("x"), (int, float))]
+        ys = [shape["y"] for shape in flat_shapes if isinstance(shape.get("y"), (int, float))]
+        if len(xs) < 2 or len(ys) < 2:
+            return "未知"
+        x_span = max(xs) - min(xs)
+        y_span = max(ys) - min(ys)
+        if y_span > x_span * 1.25:
+            return "垂直布局"
+        if x_span > y_span * 1.25:
+            return "水平布局"
+        return "混合布局"
     
     # Helper methods
     
@@ -829,8 +1152,8 @@ get_log_summary()
                         result['类别'] = line.split(':', 1)[-1].strip()
                     if '复杂度' in line or 'Complexity' in line:
                         result['复杂度'] = line.split(':', 1)[-1].strip()
-        except:
-            pass
+        except Exception as exc:
+            result['parse_warning'] = str(exc)
         return result
     
     def _parse_diagram_info(self, info_str: str) -> Dict[str, Any]:
@@ -845,8 +1168,9 @@ get_log_summary()
                     result['页面尺寸'] = line.split(':', 1)[-1].strip()
                 if '当前页' in line or 'Current page' in line:
                     result['当前页'] = line.split(':', 1)[-1].strip()
-        except:
+        except Exception as exc:
             result['提取状态'] = '部分失败'
+            result['parse_warning'] = str(exc)
         return result
     
     def _parse_shapes_info(self, shapes_str: str) -> Dict[str, Any]:
@@ -880,8 +1204,8 @@ get_log_summary()
                         
                         if shape_type == 'Connector':
                             result['连接器数量'] += 1
-        except:
-            pass
+        except Exception as exc:
+            result['parse_warning'] = str(exc)
         
         return result
     
@@ -916,8 +1240,8 @@ get_log_summary()
             if not result['拓扑类型']:
                 result['拓扑类型'].append('通用型')
                 
-        except:
-            pass
+        except Exception as exc:
+            result['parse_warning'] = str(exc)
         
         return result
     
@@ -949,8 +1273,8 @@ get_log_summary()
             if spacing_matches:
                 result['间距特征']['平均间距'] = sum(float(x) for x in spacing_matches) / len(spacing_matches)
         
-        except:
-            pass
+        except Exception as exc:
+            result['parse_warning'] = str(exc)
         
         return result
     
@@ -1001,8 +1325,8 @@ get_log_summary()
             elif connections.get('连接总数', 0) / max(shape_count, 1) > 2.5:
                 logic['可扩展性'] = '低 - 结构较为固定'
             
-        except:
-            pass
+        except Exception as exc:
+            logic['parse_warning'] = str(exc)
         
         return logic
 

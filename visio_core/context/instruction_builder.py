@@ -1,6 +1,6 @@
 """
-Instruction Builder - 动态指令构建器
-根据会话状态、任务类型和用户需求动态构建优化的 Agent 指令
+Instruction Builder - skill-backed 动态指令构建器
+根据会话状态、任务类型和用户需求动态组合 Agent Skill 指令
 """
 from typing import List, Optional, Dict, Any
 from .instruction_loader import get_instruction_loader
@@ -8,7 +8,7 @@ from .session_context import SessionContext
 
 
 class InstructionBuilder:
-    """动态指令构建器"""
+    """动态组合 skill 指令与会话上下文"""
     
     def __init__(self):
         self.loader = get_instruction_loader()
@@ -28,7 +28,7 @@ class InstructionBuilder:
         Returns:
             指令列表
         """
-        # 基础指令
+        # 基础 skill 指令
         if profile == 'minimal':
             instructions = self.loader.get_minimal_instructions(include_chinese=True)
         elif profile == 'full':

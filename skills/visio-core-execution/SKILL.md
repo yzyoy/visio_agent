@@ -1,0 +1,149 @@
+---
+name: visio-core-execution
+description: Core Visio operations, basics, constraints, Chinese instruction mapping, and standard workflows. Use when directly editing, saving, or rendering Visio documents using the 15 public tools.
+---
+
+# Visio 图表操作核心执行规则与工作流
+
+## 1. 智能任务识别与全局显示策略
+
+根据用户的输入，自动识别需要使用的功能：
+- 翻译请求：'翻译', 'translate', '帮我翻译', '英文怎么说'
+- Visio 操作：'创建图表', '修改形状', '列出模板', '预览图表'
+- Prompt 生成：'生成 prompt', '推荐模板', '帮我设计流程图'
+- 通用对话：其他所有对话和任务
+
+**全局显示策略（最高优先级）**：
+- 默认仅提供 vsdx 文件的预览链接，不在聊天UI渲染图片
+- 仅当用户明确要求在聊天UI显示时，才调用预览工具并输出图片
+
+## 2. Visio 图表操作基础（面向 15 工具公开表面）
+
+核心概念：
+- **模板 (Template)**：一个完整的 Visio 文件（.vsdx），含预设形状、连接与布局，是新图表的起点。模板库位于 `assets/templates/library/`。
+- **形状库 (Stencil)**：形状集合（.vssx），可在任意图表中使用。形状库位于 `assets/templates/stencils/`。
+
+公开工具表面（且仅此 15 个）：
+1. `recommend_template(requirement, top_k=5)`
+2. `search_templates(keywords=None)`
+3. `analyze_template(path)`
+4. `search_stencils(keywords=None)`
+5. `get_stencil(name)`
+6. `open_document(path)`
+7. `create_from_template(template_name, output_path)`
+8. `save_document(path=None)` (之后必须 open_document 再读连接器)
+9. `render_page(page=0, scale=2.0, mode="data"|"url")`
+10. `upsert_shape(node_key, text, type, x, y, width?, height?, ...)`
+11. `upsert_connector(from_node_key, to_node_key, label?, router?, from_port?, to_port?)`
+12. `update_text(selector, new_text)`
+13. `remove_shape(selector)` (自动重连上下游)
+14. `edit_shape(shape_id, patch)` (patch: {text?, node_key?, position?, size?, style?})
+15. `insert_from_stencil(master_name, stencil_name, x, y, text?)`
+
+**`edit_shape` patch 完整 schema**：
+```json
+{
+  "text":     "新文字（替换显示文本）",
+  "node_key": "stable_key（为模板形状绑定稳定 key，供 upsert_connector 引用）",
+  "position": {"x": 4.0, "y": 3.0, "relative": false},
+  "size":     {"width": 2.0, "height": 0.8},
+  "style":    {"line_width": 1.0, "line_color": "#000000", "fill_color": "#CCE5FF"}
+}
+```
+任意子集均有效；`text` 和 `node_key` 是新增字段，专为模板骨架复用设计。
+
+选择器 (selector) 约定：
+- 优先 `node_key` —— 任何经 `upsert_shape` 或 `edit_shape(patch.node_key)` 绑定的形状都有稳定 key。
+- 退化 `{match: {text, mode}}` —— 来自模板但未打 key 的形状。
+- 永远不要依赖原始 `shape_id` 跨 save/reload。
+
+## 3. 重要约束与最佳实践
+
+**严格路径执行**：
+- 绝对路径 / 相对路径一旦给出，必须原样使用；不做路径"纠正"或回退。
+- 保存失败时抛出明确错误；禁止静默写到不同位置、临时目录或默认名。
+- 模板只允许从 `assets/templates/library/` 的子目录搜索；绝不从 `outputs/` 推荐模板。
+
+**幂等编辑纪律**：
+- 形状 / 连接器一律走 `upsert_shape` / `upsert_connector`；同 key 反复调用不会重复。
+- 几何 / 样式改动一律用 `edit_shape(shape_id, patch)`。
+- 删除形状用 `remove_shape`（带智能重连），不要绕过它手动接边。
+
+**模板骨架复用纪律（Workflow E 强制）**：
+- 使用模板时，**绝不在执行 edit_shape / remove_shape 清理旧形状之前调用 upsert_shape**。
+- `upsert_shape` 仅允许在步骤 7（analyze_template 已确认该角色在模板中不存在）后使用。
+- 每个需要被 `upsert_connector` 引用的形状，都必须先用 `edit_shape(id, {node_key: "..."})` 绑定 key。
+
+**保存 / 重载仪式（MCP 强制）**：
+- `save_document(path)` 后必须紧跟 `open_document(path)` 才能再次写或读取连接器，否则会抛 `SAVE_REQUIRES_RELOAD`。
+
+**分析纪律**：
+- 结构分析一律调用 `analyze_template(path)` 一次，返回 info / shapes / connections / positions / groups / topology 六段。
+
+## 4. 中文指令理解
+
+当用户使用中文指令时，请识别并调用对应的公开工具（绝不调用其他内部名称）：
+- 打开/加载/读取 .vsdx       → `open_document`
+- 从模板创建/复制模板         → `create_from_template`
+- 保存/存储/写入             → `save_document`
+- 渲染/预览/展示（.vsdx）    → `render_page`
+- 搜索模板（按需求）          → `recommend_template`
+- 列出/关键词检索模板         → `search_templates`
+- 分析模板结构（一次性六合一）→ `analyze_template`
+- 添加/新增/创建形状          → `upsert_shape`（仅当模板无此角色时）
+- 连接/链接形状              → `upsert_connector`
+- 修改/更新文本（已有模板形状）→ `edit_shape(id, {text: "...", node_key: "..."})` （推荐）或 `update_text`
+- 删除/移除形状              → `remove_shape`
+- 移动/改尺寸/改样式          → `edit_shape`
+- 从形状库插入形状            → `insert_from_stencil`
+
+## 5. 标准工作流
+
+A) 在已有模板上原位改文字
+  1) `recommend_template` (若用户尚未指定模板)
+  2) `analyze_template`
+  3) `open_document`
+  4) `update_text`
+  5) `save_document`
+  6) `open_document` (强制再次打开才能读连接器)
+  7) `render_page`
+
+B) 从零搭建图表
+  1) `recommend_template`
+  2) `analyze_template`
+  3) `create_from_template`
+  4) `upsert_shape` (所有形状都必须先存在)
+  5) `upsert_connector`
+  6) `edit_shape` (调整样式/大小)
+  7) `save_document`
+  8) `open_document`
+  9) `render_page`
+
+C) 插入形状库中的形状
+  1) `search_stencils`
+  2) `get_stencil`
+  3) `insert_from_stencil`
+
+D) 删除节点并保留上下游流向
+  1) `remove_shape`
+  2) `save_document` + `open_document`
+  3) `analyze_template` (核对 connections)
+
+E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）**
+  1) `recommend_template` → 等用户确认或直接取第一条
+  2) `analyze_template(template_path)` — 了解原始模板结构
+  3) `create_from_template(template, "outputs/<name>.vsdx")`
+  4) `open_document("outputs/<name>.vsdx")`
+  5) `analyze_template("outputs/<name>.vsdx")` — 获取工作文件的**实时形状清单**（含 shape_id）
+  6) 将每个需要的角色映射到模板中已有的 shape_id：
+     `edit_shape(shape_id, {"text": "目标文字", "node_key": "stable_key"})`
+     — 在此步骤中同时完成文本替换和 key 绑定，坐标由模板继承，无需手动填写 (x, y)
+  7) 对每个多余的模板形状：`remove_shape(shape_id)`
+     — 若 remove_shape 返回 `IS_CONNECTOR`，说明该 ID 是连接线，跳过即可
+  8) 仅当步骤 5 确认模板中**没有**对应角色时：
+     `upsert_shape(node_key, text, type, x, y)`
+  9) `upsert_connector(from_node_key, to_node_key, label?, from_port?, to_port?)`
+     — 所有端点必须已在步骤 6 或 8 中绑定了 node_key
+  10) `save_document("outputs/<name>.vsdx")`
+  11) `open_document("outputs/<name>.vsdx")` — 强制重载（MCP 约束）
+  12) `render_page(page=0, scale=2.0, mode="data")`

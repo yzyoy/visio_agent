@@ -7,15 +7,19 @@ index-rebuild step is scriptable and idempotent. Meant to be run after
 
 Usage:
     python -m tools-offline.library_maintenance.regenerate_indexes \
-        --template-dir assets/templates \
+        --template-dir assets/templates/library \
         --stencil-dir assets/templates/stencils \
+        --out-dir assets/indexes
+
+    # Stencils only (skip template scan):
+    python -m tools-offline.library_maintenance.regenerate_indexes \
+        --stencils-only --stencil-dir assets/templates/stencils \
         --out-dir assets/indexes
 """
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -67,19 +71,37 @@ def _regenerate_stencil_indexes(stencil_dir: Path, out_dir: Path) -> dict:
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__ or "")
-    parser.add_argument("--template-dir", required=True)
-    parser.add_argument("--stencil-dir", default="")
+    parser.add_argument(
+        "--template-dir",
+        default="",
+        help="Root directory of .vsdx templates (required unless --stencils-only).",
+    )
+    parser.add_argument("--stencil-dir", default="", help="Root directory of .vssx stencil packs.")
+    parser.add_argument(
+        "--stencils-only",
+        action="store_true",
+        help="Only regenerate stencil_library.json; skip template scan.",
+    )
     parser.add_argument("--out-dir", required=True)
     args = parser.parse_args(argv)
 
-    template_dir = Path(args.template_dir).resolve()
     out_dir = Path(args.out_dir).resolve()
 
-    report = {"templates": _regenerate_template_indexes(template_dir, out_dir)}
-    if args.stencil_dir:
-        report["stencils"] = _regenerate_stencil_indexes(
-            Path(args.stencil_dir).resolve(), out_dir
-        )
+    if args.stencils_only:
+        if not args.stencil_dir:
+            parser.error("--stencils-only requires --stencil-dir")
+        report = {
+            "stencils": _regenerate_stencil_indexes(Path(args.stencil_dir).resolve(), out_dir)
+        }
+    else:
+        if not args.template_dir:
+            parser.error("either --template-dir or --stencils-only --stencil-dir is required")
+        template_dir = Path(args.template_dir).resolve()
+        report = {"templates": _regenerate_template_indexes(template_dir, out_dir)}
+        if args.stencil_dir:
+            report["stencils"] = _regenerate_stencil_indexes(
+                Path(args.stencil_dir).resolve(), out_dir
+            )
 
     report_path = out_dir / "regenerate_report.json"
     report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")

@@ -51,6 +51,9 @@ class DiagramBuilder:
         
         # Edge-centric manager for rigorous edge management
         self.edge_manager = EdgeCentricManager(self)
+
+        # Last connector failure detail (set by connect_shapes) for tool/logging diagnostics
+        self.last_connector_error: Optional[str] = None
     
     @classmethod
     def load_from_file(cls, filepath: str) -> 'DiagramBuilder':
@@ -520,7 +523,9 @@ class DiagramBuilder:
         if not self.current_page:
             print("Error: No current page set")
             return None
-        
+
+        self.last_connector_error = None
+
         try:
             # Convert shape objects to IDs if needed
             if hasattr(from_shape_id, 'ID'):
@@ -571,35 +576,64 @@ class DiagramBuilder:
             
             if connector_template:
                 template_source_msg = template_sources[0] if template_sources else "existing connector"
-                print(f"Using connector template from: {template_source_msg} (style reference only)")
+                print(f"Using connector template from: {template_source_msg} (copy_shape + set_start_and_finish)")
                 template_style = self._extract_connector_style(connector_template)
             else:
                 print(f"Info: No connector template found. Creating connector programmatically using vsdx library.")
             
-            try:
-                from vsdx.connectors import Connect
-                
-                # Create connector using vsdx library regardless of template availability
-                new_connector = Connect.create(
-                    page=self.current_page,
-                    from_shape=from_shape,
-                    to_shape=to_shape
-                )
-                
-                if new_connector:
-                    print(f"[OK] Created connector via vsdx.Connect.create() (ID: {getattr(new_connector, 'ID', 'unknown')}), no template required")
+            new_connector = None
+            if connector_template:
+                try:
+                    self.visio_file.copy_shape(connector_template.xml, self.current_page)
+                    new_connector = self.current_page.child_shapes[-1]
+                    sx, sy, tx, ty = self._compute_edge_connection(from_shape, to_shape)
+                    if not hasattr(new_connector, 'set_start_and_finish'):
+                        raise RuntimeError("Copied connector lacks set_start_and_finish")
+                    new_connector.set_start_and_finish((sx, sy), (tx, ty))
+                    print(
+                        f"[OK] Created connector via copy_shape (ID: {getattr(new_connector, 'ID', 'unknown')})"
+                    )
+                except Exception as e:
+                    import traceback
+                    self.last_connector_error = (
+                        f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=5)}"
+                    )
+                    print(f"Error: copy_shape connector path failed: {e}")
+                    traceback.print_exc()
+                    new_connector = None
+            
+            if new_connector is None:
+                try:
+                    from vsdx.connectors import Connect
                     
-                    # NOTE: Connector XML appending to page Shapes is handled by
-                    # connector_visibility_patch.py to avoid double-appending.
-                else:
-                    print(f"Error: vsdx.Connect.create() returned None")
+                    new_connector = Connect.create(
+                        page=self.current_page,
+                        from_shape=from_shape,
+                        to_shape=to_shape
+                    )
+                    
+                    if new_connector:
+                        cid = getattr(new_connector, 'ID', 'unknown')
+                        print(f"[OK] Created connector via vsdx.Connect.create() (ID: {cid})")
+                    else:
+                        self.last_connector_error = (
+                            self.last_connector_error or "vsdx.Connect.create() returned None"
+                        )
+                        print(f"Error: vsdx.Connect.create() returned None")
+                        return None
+                        
+                except Exception as e:
+                    import traceback
+                    tb = traceback.format_exc(limit=8)
+                    self.last_connector_error = f"{type(e).__name__}: {e}\n{tb}"
+                    print(f"Error: Failed to create connector via vsdx library: {e}")
+                    traceback.print_exc()
                     return None
-                    
-            except Exception as e:
-                print(f"Error: Failed to create connector via vsdx library: {e}")
-                import traceback
-                traceback.print_exc()
-                return None
+            
+            try:
+                self._normalize_connector_geometry(new_connector, from_shape, to_shape)
+            except Exception as norm_err:
+                print(f"Warning: connector geometry normalize failed: {norm_err}")
             
             # Apply styling based on template (if available) or fall back to defaults
             applied_style_cells = set()
@@ -1046,57 +1080,68 @@ class DiagramBuilder:
         """Remove a shape from the diagram with basic connector cleanup"""
         return self.remove_shape_with_connector_management(shape_id, reconnect_mode='remove_connectors')
 
-    def remove_shape_with_connector_management(self, shape_id: str, reconnect_mode: str = 'smart_reconnect') -> bool:
-        """
-        Remove a shape from the diagram with advanced connector management.
-        
+    def remove_shape_with_connector_management(
+        self, shape_id: str, reconnect_mode: str = 'smart_reconnect'
+    ):
+        """Remove a shape from the diagram with advanced connector management.
+
         Args:
             shape_id: ID of the shape to remove
             reconnect_mode: How to handle connectors:
                 - 'remove_connectors': Remove all connected connectors (simple cleanup)
                 - 'smart_reconnect': Try to reconnect through the deleted shape (preserves flow)
                 - 'validate_only': Check for issues but don't remove (useful for batch operations)
-        
+
         Returns:
-            True if successful
+            ``(True, "")`` on success.
+            ``(False, reason_code)`` on failure, where *reason_code* is one of:
+            ``"NO_SHAPE"`` – shape not found,
+            ``"IS_CONNECTOR"`` – target is a connector (use remove_connector),
+            ``"SAVE_REQUIRED"`` – diagram was modified after last save,
+            ``"EDGE_ERROR"`` – connector-management step failed,
+            ``"EXCEPTION:<msg>"`` – unexpected exception.
         """
         shape = self.get_shape_by_id(shape_id)
         if not shape:
             print(f"Error: Shape '{shape_id}' not found")
-            return False
-        
+            return False, "NO_SHAPE"
+
         # Skip connectors - they should be removed via connector-specific methods
         if self._is_connector(shape):
             print(f"Error: Cannot remove connector '{shape_id}' via remove_shape. Use remove_connector instead.")
-            return False
-        
+            return False, "IS_CONNECTOR"
+
         try:
             # Use edge-centric manager for precise edge handling
             edge_results = self.edge_manager.handle_shape_deletion(
                 shape_id,
                 reconnect_strategy='smart' if reconnect_mode == 'smart_reconnect' else 'remove'
             )
-            
+
             # Log edge management results
-            if edge_results['edges_reconnected']:
+            if edge_results.get('edges_reconnected'):
                 print(f"Reconnected {len(edge_results['edges_reconnected'])} edges through deleted shape")
-            if edge_results['edges_removed']:
+            if edge_results.get('edges_removed'):
                 print(f"Removed {len(edge_results['edges_removed'])} edges")
-            if edge_results['errors']:
+            if edge_results.get('errors'):
                 for error in edge_results['errors']:
                     print(f"Warning: {error}")
-            
+                # If every individual edge operation failed, surface a summary
+                if not edge_results.get('edges_reconnected') and not edge_results.get('edges_removed'):
+                    detail = "; ".join(str(e) for e in edge_results['errors'][:3])
+                    return False, f"EDGE_ERROR:{detail}"
+
             # Remove the shape itself
             shape.remove()
-            
+
             # Rebuild edge inventory after changes
             self.edge_manager.build_edge_inventory(force_rebuild=True)
-            
-            return True
-            
+
+            return True, ""
+
         except Exception as e:
             print(f"Error removing shape: {e}")
-            return False
+            return False, f"EXCEPTION:{e}"
     
     def remove_connector(self, connector_id: str) -> bool:
         """
@@ -2393,6 +2438,59 @@ class DiagramBuilder:
             end_y = (ty + th/2) if fy >= ty else (ty - th/2)
 
         return (float(start_x), float(start_y), float(end_x), float(end_y))
+
+    def _normalize_connector_geometry(self, connector: Any, _from_shape: Any, _to_shape: Any) -> None:
+        """Force 1-D dynamic connector geometry and valid Sheet.{id}! formulas.
+
+        Master-copied connectors often inherit bad Geometry rows (literal LineTo Y,
+        Del=\"1\" rows) and malformed _XFTRIGGER(Sheet49!...) references — those break
+        Visio/LibreOffice render and preview.
+        """
+        if connector is None or not hasattr(connector, 'xml') or connector.xml is None:
+            return
+        import xml.etree.ElementTree as ET
+
+        P = '{http://schemas.microsoft.com/office/visio/2012/main}'
+        root = connector.xml
+
+        for elem in root.iter():
+            f = elem.get('F')
+            if f and re.search(r'Sheet\d+!', f):
+                elem.set('F', re.sub(r'Sheet(\d+)!', r'Sheet.\1!', f))
+
+        for child in list(root):
+            tag_local = child.tag.split('}')[-1]
+            if tag_local == 'Section' and child.get('N') == 'Geometry':
+                root.remove(child)
+
+        for child in list(root):
+            tag_local = child.tag.split('}')[-1]
+            if tag_local == 'Geom':
+                root.remove(child)
+
+        geom = ET.SubElement(root, f'{P}Section', {'N': 'Geometry', 'IX': '0'})
+        ET.SubElement(geom, f'{P}Cell', {'N': 'NoFill', 'V': '1'})
+        move = ET.SubElement(geom, f'{P}Row', {'T': 'MoveTo', 'IX': '1'})
+        ET.SubElement(move, f'{P}Cell', {'N': 'X', 'V': '0', 'F': 'Width*0'})
+        ET.SubElement(move, f'{P}Cell', {'N': 'Y', 'V': '0', 'F': 'Height*0.5'})
+        line = ET.SubElement(geom, f'{P}Row', {'T': 'LineTo', 'IX': '2'})
+        ET.SubElement(line, f'{P}Cell', {'N': 'X', 'V': '0', 'F': 'Width*1'})
+        ET.SubElement(line, f'{P}Cell', {'N': 'Y', 'V': '0', 'F': 'Height*0.5'})
+
+        xform_cells = (
+            ('PinX', '(BeginX+EndX)*0.5'),
+            ('PinY', '(BeginY+EndY)*0.5'),
+            ('Width', 'GUARD(SQRT((EndX-BeginX)^2+(EndY-BeginY)^2))'),
+            ('Height', 'GUARD(0)'),
+            ('LocPinX', 'Width*0.5'),
+            ('LocPinY', 'Height*0.5'),
+            ('Angle', 'ATAN2(EndY-BeginY,EndX-BeginX)'),
+        )
+        for cell_name, formula in xform_cells:
+            for elem in list(root):
+                if elem.tag == f'{P}Cell' and elem.get('N') == cell_name:
+                    elem.set('F', formula)
+                    break
 
     def _get_connection_point(self, shape: Any, from_position: Optional[Tuple[float, float]] = None) -> int:
         """
@@ -5697,11 +5795,41 @@ class DiagramBuilder:
                 )
                 return existing_shape, "updated"
         else:
-            # Shape doesn't exist - try fallback matching
+            # Shape doesn't exist - try fallback matching (text-equality first)
             fallback_shape = find_shape_by_fallback(
                 self.current_page, self, text, x, y, shape_type
             )
-            
+
+            if fallback_shape is None:
+                # Second fallback: adopt the nearest *unkeyed* shape within 0.5 in
+                # of the requested position regardless of its text.  This prevents
+                # creating duplicate shapes on top of empty template placeholders.
+                ADOPT_RADIUS = 0.5  # inches
+                best: Optional[Any] = None
+                best_dist = float("inf")
+                for candidate in self.current_page.child_shapes:
+                    try:
+                        if self._is_connector(candidate):
+                            continue
+                        existing_key = get_shape_prop(candidate, "NodeKey")
+                        if existing_key:
+                            continue  # already keyed – leave it alone
+                        cx = float(getattr(candidate, "x", None) or 0)
+                        cy = float(getattr(candidate, "y", None) or 0)
+                        dist = ((cx - x) ** 2 + (cy - y) ** 2) ** 0.5
+                        if dist < ADOPT_RADIUS and dist < best_dist:
+                            best = candidate
+                            best_dist = dist
+                    except Exception:
+                        continue
+                if best is not None:
+                    fallback_shape = best
+                    print(
+                        f"Info: Positional adoption of unkeyed shape ID "
+                        f"{getattr(best, 'ID', '?')} (dist={best_dist:.2f} in) "
+                        f"for node_key='{node_key}'"
+                    )
+
             if fallback_shape:
                 # Found a matching shape without key - adopt it
                 success = set_shape_prop(fallback_shape, 'NodeKey', node_key)

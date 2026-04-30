@@ -20,24 +20,57 @@ Import boundary (refactor):
 from __future__ import annotations
 
 import json
+import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .library_cache import get_library_cache
 from ..context.instruction_loader import get_instruction_loader
 
+logger = logging.getLogger(__name__)
+
+
+def _build_user_message(content: str) -> Any:
+    """Build a user message accepted by agno's ``model.response([msg])``.
+
+    Newer agno versions invoke ``message.log(metrics=False)`` and may rely on
+    additional fields/methods on its own ``Message`` dataclass. Prefer the real
+    class when available, and fall back to a duck-typed shim otherwise. The
+    shim exposes ``log``/``to_dict`` no-ops so it stays compatible across
+    minor agno upgrades without forcing this module to hard-depend on agno.
+    """
+    try:
+        from agno.models.message import Message  # type: ignore
+
+        return Message(role="user", content=content)
+    except Exception:
+        return _UserMessage(content)
+
 
 class _UserMessage:
-    """Minimal duck-typed message compatible with agno's model.response().
+    """Minimal duck-typed message compatible with agno's ``model.response()``.
 
-    Kept local so this module never needs to ``import agno``.
+    Kept local so this module does not require ``import agno`` at import time.
+    Includes ``log``/``to_dict`` no-ops because recent agno releases call
+    ``message.log(metrics=False)`` on every input message before dispatch.
     """
 
-    __slots__ = ("role", "content")
+    __slots__ = ("role", "content", "name", "tool_call_id", "tool_calls")
 
     def __init__(self, content: str):
         self.role = "user"
         self.content = content
+        self.name = None
+        self.tool_call_id = None
+        self.tool_calls = None
+
+    def log(self, *args: Any, **kwargs: Any) -> None:
+        """No-op log hook used by agno's ``_log_messages``."""
+        return None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"role": self.role, "content": self.content}
 
 
 def _complete(model: Any, prompt: str) -> str:
@@ -55,7 +88,7 @@ def _complete(model: Any, prompt: str) -> str:
     if hasattr(model, "complete"):
         return str(model.complete(prompt))
     if hasattr(model, "response"):
-        response = model.response([_UserMessage(prompt)])
+        response = model.response([_build_user_message(prompt)])
         return str(getattr(response, "content", response))
     raise TypeError(
         f"Unsupported LLM model of type {type(model).__name__}: expected "
@@ -215,7 +248,7 @@ class SmartMatcher:
                 'analysis': Dict[str, Any]  # 完整需求分析
             }
         """
-        # 从动态指令模板加载提示词
+        # 从 skill-backed loader 加载需求分析提示词
         prompt_template = self.instruction_loader.load_template('keyword_extraction')
         prompt = prompt_template.replace('{chinese_text}', chinese_text)
         
@@ -249,7 +282,12 @@ class SmartMatcher:
             }
         except Exception as e:
             print(f"❌ 关键词提取失败: {e}")
-            # Fallback to basic extraction
+            logger.exception(
+                "Keyword extraction via LLM failed; falling back to heuristic extraction. "
+                "input_len=%d error=%s",
+                len(chinese_text or ""),
+                e,
+            )
             return {
                 'keywords': self._fallback_keyword_extraction(chinese_text),
                 'analysis': {}
@@ -679,7 +717,7 @@ class SmartMatcher:
                          model: Any,
                          top_k: int = 5,
                          search_type: str = "template",
-                         confidence_score: float = 0.5) -> List[Dict[str, Any]]:
+                         confidence_score: float = 0.5) -> Dict[str, Any]:
         """
         使用大模型对候选项进行评估和排序（步骤3 - 使用完整版详细信息）
         
@@ -693,13 +731,21 @@ class SmartMatcher:
             confidence_score: 输入置信度分数（用于动态权重）
             
         Returns:
-            评估和排序后的结果列表（中文描述）
+            Structured evaluation result with ``results`` plus warning/fallback metadata.
         """
         if not candidates:
-            return []
+            return {
+                "results": [],
+                "warnings": ["No candidates available for LLM evaluation."],
+                "fallback_used": False,
+                "error_code": None,
+            }
         
-        # Limit candidates to avoid token overflow
-        candidates_for_eval = candidates[:20]
+        # Limit candidates to avoid token overflow.
+        # Step 2 now caps candidates at _TARGET_MAX_CANDIDATES (default 10),
+        # so 10 is the natural ceiling here as well.
+        llm_cap = max(self._TARGET_MAX_CANDIDATES, 10)
+        candidates_for_eval = candidates[:llm_cap]
         print(f"✓ 限制候选项数量: {len(candidates)} → {len(candidates_for_eval)} 个（实际传给LLM）")
         
         # 从完整版库中加载详细信息
@@ -727,7 +773,7 @@ class SmartMatcher:
         # 根据置信度确定评分权重策略
         scoring_strategy = self._get_scoring_strategy(confidence_score)
         
-        # 从动态指令模板加载提示词
+        # 从 skill-backed loader 加载模板评估提示词
         prompt_template = self.instruction_loader.load_template('template_evaluation')
         prompt = prompt_template.replace('{user_requirement}', user_requirement)
         prompt = prompt.replace('{requirement_analysis}', analysis_text)
@@ -877,8 +923,20 @@ class SmartMatcher:
                 print(f"失败的文件名: {', '.join(match_failures)}")
             print(f"{'='*60}\n")
             
+            warnings: List[str] = []
+            if match_failures:
+                warnings.append(
+                    "Some LLM recommendations could not be matched back to candidates: "
+                    + ", ".join(match_failures)
+                )
+
             print(f"✓ 大模型评估完成: 推荐 {len(final_results)} 个最佳匹配")
-            return final_results
+            return {
+                "results": final_results,
+                "warnings": warnings,
+                "fallback_used": False,
+                "error_code": None,
+            }
         
         except json.JSONDecodeError as e:
             print(f"\n{'='*60}")
@@ -892,11 +950,25 @@ class SmartMatcher:
             print(f"  2. 是否有多余的文字说明")
             print(f"  3. JSON格式是否正确（逗号、引号、括号等）")
             print(f"{'='*60}\n")
-            # Fallback to keyword-based ranking
+            logger.error(
+                "LLM evaluation returned invalid JSON; using keyword-ranked fallback. "
+                "candidates=%d top_k=%d error=%s snippet=%r",
+                len(candidates),
+                top_k,
+                e,
+                (e.doc[max(0, e.pos - 50):e.pos + 50] if hasattr(e, "doc") else None),
+            )
             fallback_results = candidates[:top_k]
             print(f"⚠️ 【重要】触发FALLBACK: 返回基于关键词排序的前 {len(fallback_results)} 个结果")
             print(f"   这可能导致推荐数量与预期不符！\n")
-            return fallback_results
+            return {
+                "results": fallback_results,
+                "warnings": [
+                    "LLM returned invalid JSON; used keyword-ranked fallback candidates instead."
+                ],
+                "fallback_used": True,
+                "error_code": "PARSE_FAILED",
+            }
         except Exception as e:
             print(f"\n{'='*60}")
             print(f"❌ 大模型评估失败: {type(e).__name__}")
@@ -905,11 +977,24 @@ class SmartMatcher:
             import traceback
             print(f"错误堆栈:\n{traceback.format_exc()}")
             print(f"{'='*60}\n")
-            # Fallback to keyword-based ranking
+            logger.exception(
+                "LLM evaluation failed (%s); using keyword-ranked fallback. "
+                "candidates=%d top_k=%d",
+                type(e).__name__,
+                len(candidates),
+                top_k,
+            )
             fallback_results = candidates[:top_k]
             print(f"⚠️ 【重要】触发FALLBACK: 返回基于关键词排序的前 {len(fallback_results)} 个结果")
             print(f"   这可能导致推荐数量与预期不符！\n")
-            return fallback_results
+            return {
+                "results": fallback_results,
+                "warnings": [
+                    f"LLM evaluation failed ({type(e).__name__}); used keyword-ranked fallback candidates instead."
+                ],
+                "fallback_used": True,
+                "error_code": "MODEL_UNAVAILABLE",
+            }
     
     def _format_requirement_analysis(self, analysis: Dict[str, Any]) -> str:
         """格式化需求分析为文本"""
@@ -1088,6 +1173,95 @@ class SmartMatcher:
         else:
             # 高置信度：低阈值
             return 0.08
+
+    # 阈值阶梯：(keyword_threshold, structure_threshold)
+    # 从最宽松（level 0）到最严格（level 6），用于步骤 2 自适应收紧
+    _THRESHOLD_LADDER: List[tuple] = [
+        (0.00, 0.00),  # 0 - 完全放开（最后兜底）
+        (0.02, 0.30),  # 1 - 极宽松
+        (0.05, 0.40),  # 2 - 较宽松
+        (0.08, 0.50),  # 3 - 标准（原默认）
+        (0.15, 0.60),  # 4 - 偏严
+        (0.25, 0.70),  # 5 - 严格
+        (0.40, 0.80),  # 6 - 极严格
+    ]
+
+    # 候选数量目标区间
+    _TARGET_MIN_CANDIDATES = 1
+    _TARGET_MAX_CANDIDATES = 10
+
+    def _baseline_threshold_level(self, confidence_score: float) -> int:
+        """根据置信度选择起步阶梯（作为收紧/放宽的起点）。"""
+        if confidence_score < 0.4:
+            return 1  # 低置信度从极宽松开始
+        elif confidence_score < 0.7:
+            return 2  # 中置信度从较宽松开始
+        else:
+            return 3  # 高置信度从标准阈值开始
+
+    def adaptive_filter(self,
+                        keywords: List[str],
+                        analysis: Dict[str, Any],
+                        search_type: str,
+                        confidence_score: float) -> tuple:
+        """
+        步骤 2 自适应筛选：逐渐提升阈值等级，确保候选数 ∈ [1, 10]。
+        
+        策略：
+        1. 从置信度对应的起步阶梯开始评估候选数。
+        2. 若候选 > MAX：逐级升高阈值，直到落入 [MIN, MAX]；
+           若再升一级会导致 0，则停在当前级别。
+        3. 若候选 < MIN：逐级降低阈值，直到 >= MIN 或到达 level 0。
+        
+        Returns:
+            (candidates, ladder_trace) 元组，ladder_trace 用于诊断/告警。
+        """
+        ladder = self._THRESHOLD_LADDER
+        baseline = self._baseline_threshold_level(confidence_score)
+        trace: List[Dict[str, Any]] = []
+
+        def run_level(level: int) -> List[Dict[str, Any]]:
+            kt, st = ladder[level]
+            print(f"  ↳ 尝试阈值等级 L{level} (关键词≥{kt}, 结构≥{st})")
+            cands = self.filter_by_keywords_and_structure(
+                keywords,
+                analysis,
+                search_type=search_type,
+                keyword_threshold=kt,
+                structure_threshold=st,
+            )
+            trace.append({"level": level, "kt": kt, "st": st, "count": len(cands)})
+            return cands
+
+        candidates = run_level(baseline)
+
+        if len(candidates) > self._TARGET_MAX_CANDIDATES:
+            # 候选过多：向上收紧
+            level = baseline
+            best = candidates
+            while level + 1 < len(ladder):
+                level += 1
+                next_cands = run_level(level)
+                if len(next_cands) < self._TARGET_MIN_CANDIDATES:
+                    print(f"  ⚠ L{level} 收紧过度（{len(next_cands)} 个），回退到 L{level - 1}")
+                    break
+                best = next_cands
+                if len(best) <= self._TARGET_MAX_CANDIDATES:
+                    break
+            candidates = best
+        elif len(candidates) < self._TARGET_MIN_CANDIDATES:
+            # 候选过少（通常为 0）：向下放宽
+            level = baseline
+            while level > 0 and len(candidates) < self._TARGET_MIN_CANDIDATES:
+                level -= 1
+                candidates = run_level(level)
+
+        # 截断到上限（仍按综合分排序后保留前 N）
+        if len(candidates) > self._TARGET_MAX_CANDIDATES:
+            print(f"  ↳ 候选 {len(candidates)} 超出上限，截断到 {self._TARGET_MAX_CANDIDATES}")
+            candidates = candidates[: self._TARGET_MAX_CANDIDATES]
+
+        return candidates, trace
     
     def _format_candidates_for_llm(self, candidates: List[Dict[str, Any]]) -> str:
         """格式化候选项供LLM评估（强化结构信息）"""
@@ -1173,6 +1347,9 @@ class SmartMatcher:
         print(f"\n{'='*60}")
         print(f"🔍 开始智能匹配 - 搜索类型: {search_type}")
         print(f"{'='*60}")
+        warnings: List[str] = []
+        fallback_used = False
+        error_code: Optional[str] = None
         
         # Step 1: Extract English keywords and requirement analysis from input
         print("\n📝 步骤 1: 提取英文关键词和需求分析...")
@@ -1183,6 +1360,7 @@ class SmartMatcher:
         if not keywords:
             print("⚠ 警告: 未能提取关键词，使用备用方案")
             keywords = self._fallback_keyword_extraction(user_input)
+            warnings.append("Keyword extraction returned no keywords; used fallback keyword extraction.")
         
         # Assess input complexity for dynamic matching
         print("\n🎯 步骤 1.5: 评估输入复杂度...")
@@ -1191,35 +1369,34 @@ class SmartMatcher:
         print(f"✓ 输入复杂度: {complexity_assessment['complexity_level']}")
         print(f"✓ 匹配置信度: {confidence_score:.2f}")
         
-        # Step 2: Filter by keywords and structure (dynamic threshold based on complexity)
-        print("\n🔎 步骤 2: 关键词+结构筛选（动态阈值）...")
-        keyword_threshold = self._get_dynamic_filter_threshold(confidence_score)
-        structure_threshold = 0.5  # 结构阈值：提高到0.5，严格要求结构匹配
-        print(f"✓ 使用关键词阈值: {keyword_threshold}, 结构阈值: {structure_threshold}")
-        print(f"✓ 筛选策略: 关键词极宽松（{keyword_threshold}），结构严格把关（{structure_threshold}）")
-        
-        candidates = self.filter_by_keywords_and_structure(
-            keywords,
-            analysis,  # 传递需求分析结果
-            search_type=search_type,
-            keyword_threshold=keyword_threshold,
-            structure_threshold=structure_threshold
+        # Step 2: Adaptive filtering — escalate thresholds to land in [MIN, MAX]
+        print("\n🔎 步骤 2: 关键词+结构自适应筛选（阶梯阈值）...")
+        print(
+            f"✓ 目标候选数: [{self._TARGET_MIN_CANDIDATES}, {self._TARGET_MAX_CANDIDATES}]，"
+            f"起步等级 L{self._baseline_threshold_level(confidence_score)}"
         )
-        
+
+        candidates, ladder_trace = self.adaptive_filter(
+            keywords=keywords,
+            analysis=analysis,
+            search_type=search_type,
+            confidence_score=confidence_score,
+        )
+        print(f"✓ 自适应筛选完成: 最终 {len(candidates)} 个候选 (阶梯轨迹: {ladder_trace})")
+
         if not candidates:
-            print("⚠ 未找到匹配项，降低筛选标准...")
-            candidates = self.filter_by_keywords_and_structure(
-                keywords,
-                analysis,
-                search_type=search_type,
-                keyword_threshold=0.0,
-                structure_threshold=0.0  # 降低两个阈值
+            warnings.append(
+                "Adaptive filter could not find any candidates even at the loosest level."
             )
-        
+        elif len(candidates) < self._TARGET_MIN_CANDIDATES:
+            warnings.append(
+                f"Adaptive filter produced fewer than {self._TARGET_MIN_CANDIDATES} candidate(s)."
+            )
+
         # Step 3: Evaluate with LLM (using full library and requirement analysis)
-        print(f"\n🤖 步骤 3: 大模型评估（从 {len(candidates)} 个候选中选择前20个进行评估）...")
+        print(f"\n🤖 步骤 3: 大模型评估（{len(candidates)} 个候选 → LLM 排序）...")
         if candidates:
-            final_results = self.evaluate_with_llm(
+            llm_eval = self.evaluate_with_llm(
                 candidates,
                 user_input,
                 analysis,  # Pass requirement analysis
@@ -1228,8 +1405,13 @@ class SmartMatcher:
                 search_type=search_type,
                 confidence_score=confidence_score  # Pass confidence score for dynamic scoring
             )
+            final_results = llm_eval["results"]
+            warnings.extend(llm_eval.get("warnings", []))
+            fallback_used = llm_eval.get("fallback_used", False)
+            error_code = llm_eval.get("error_code")
         else:
             final_results = []
+            warnings.append("No candidates were available for recommendation after relaxed filtering.")
         
         # Step 4: Format output in Chinese
         print("\n📊 步骤 4: 生成中文输出...")
@@ -1239,7 +1421,10 @@ class SmartMatcher:
             final_results,
             search_type,
             complexity_assessment,  # Pass complexity assessment
-            analysis  # Pass analysis
+            analysis,  # Pass analysis
+            warnings=warnings,
+            fallback_used=fallback_used,
+            error_code=error_code,
         )
         
         print(f"\n{'='*60}")
@@ -1252,7 +1437,10 @@ class SmartMatcher:
                               results: List[Dict[str, Any]], 
                               search_type: str,
                               complexity_assessment: Optional[Dict[str, Any]] = None,
-                              analysis: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                              analysis: Optional[Dict[str, Any]] = None,
+                              warnings: Optional[List[str]] = None,
+                              fallback_used: bool = False,
+                              error_code: Optional[str] = None) -> Dict[str, Any]:
         """格式化中文输出（极简版，最小化token占用）"""
         print(f"\n{'='*60}")
         print(f"📝 步骤 4: 格式化中文输出")
@@ -1269,9 +1457,19 @@ class SmartMatcher:
         print(f"{'='*60}\n")
         
         type_name = "模板" if search_type == "template" else "形状库"
+        warnings = list(warnings or [])
         
-        # 极简输出：只返回推荐列表，移除所有冗余信息
         output = {
+            "status": "ok",
+            "search_type": search_type,
+            "requirement": user_input,
+            "keywords": keywords,
+            "analysis": analysis or {},
+            "complexity_assessment": complexity_assessment or {},
+            "recommendations": [],
+            "warnings": warnings,
+            "fallback_used": fallback_used,
+            "error_code": error_code,
             "搜索类型": type_name,
             "推荐列表": []
         }
@@ -1283,24 +1481,37 @@ class SmartMatcher:
             if not template_path:
                 # 根据文件名构建默认路径
                 template_path = f"assets/templates/library/{item['filename']}"
+            elif search_type == "template":
+                normalized_path = str(Path(template_path).as_posix())
+                if not normalized_path.startswith("assets/templates/library/"):
+                    warnings.append(
+                        f"Recommended template path is outside the curated library: {template_path}"
+                    )
             
             # 核心信息：路径、得分、描述
             recommendation = {
-                "排名": i,
-                "路径": template_path,
-                "得分": round(item.get('llm_score', 0), 1),
-                "描述": item.get('structure_description', ''),
+                "rank": i,
+                "filename": item.get('filename', ''),
+                "path": template_path,
+                "score": round(item.get('llm_score', item.get('combined_score', 0)), 1),
+                "description": item.get('structure_description', ''),
             }
             
             # 添加预览URL（模板）或形状数（形状库）
             if search_type == "template":
                 # 使用Markdown链接格式避免URL因空格被拆分
                 filename = os.path.basename(template_path)
-                recommendation["预览"] = f"[{filename}](http://localhost:7777/api/visio/preview?path={template_path})"
+                recommendation["preview"] = f"[{filename}](http://localhost:7777/api/visio/preview?path={template_path})"
             
+            output["recommendations"].append(recommendation)
             output["推荐列表"].append(recommendation)
         
-        print(f"✅ 最终生成推荐列表: {len(output['推荐列表'])} 项\n")
+        if error_code and not output["recommendations"]:
+            output["status"] = "error"
+        elif warnings or fallback_used:
+            output["status"] = "warning"
+        
+        print(f"✅ 最终生成推荐列表: {len(output['recommendations'])} 项\n")
         
         return output
 

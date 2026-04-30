@@ -21,8 +21,8 @@ from ..context.session_context import DialogContextStore, SessionContext, Disabl
 class VisioTools:
     """Collection of tools for Visio diagram manipulation with logging"""
     
-    def __init__(self, session_id: str = "default", dialog_dir: str = ".state/dialog", auto_restore: bool = True, record_context: bool = False):
-        """Initialize tools and optional session context auto-restore."""
+    def __init__(self, session_id: str = "default", dialog_dir: str = ".state/dialog", auto_restore: bool = True, record_context: bool = True):
+        """Initialize tools with default session context persistence."""
         self.diagram_builder: Optional[DiagramBuilder] = None
         self.current_file_path: Optional[str] = None
         # Session context
@@ -496,7 +496,41 @@ class VisioTools:
                 success=False
             )
             return error_msg
-    
+
+    def set_node_key(self, shape_id: str, node_key: str) -> str:
+        """Assign a stable NodeKey property to a shape by its numeric ID.
+
+        Used internally by ``edit_shape`` when the caller provides
+        ``patch["node_key"]``.  After this call the shape can be referenced
+        by ``node_key`` in subsequent ``upsert_connector`` calls.
+
+        Args:
+            shape_id: Numeric string ID of the target shape.
+            node_key: The key to assign (must be non-empty).
+
+        Returns:
+            Status message.
+        """
+        err = self._ensure_loaded_or_error("✗ No diagram loaded. Use load_diagram first.")
+        if err:
+            return err
+        if not node_key:
+            return "✗ node_key must be a non-empty string."
+        from ..utils.shape_identity import set_shape_prop
+        shape = self.diagram_builder.get_shape_by_id(shape_id)
+        if not shape:
+            msg = f"✗ Shape '{shape_id}' not found."
+            log_operation("set_node_key", {"shape_id": shape_id, "node_key": node_key}, msg, False)
+            return msg
+        success = set_shape_prop(shape, "NodeKey", node_key)
+        if success:
+            result = f"✓ NodeKey '{node_key}' set on shape {shape_id}."
+            log_operation("set_node_key", {"shape_id": shape_id, "node_key": node_key}, result, True)
+            return result
+        msg = f"✗ Failed to set NodeKey '{node_key}' on shape {shape_id}."
+        log_operation("set_node_key", {"shape_id": shape_id, "node_key": node_key}, msg, False)
+        return msg
+
     def connect_shapes(self, from_shape_id: str, to_shape_id: str) -> str:
         """
         Connect two shapes with a connector line.
@@ -637,7 +671,12 @@ class VisioTools:
             else:
                 return f"⚠ Shape {shape_identifier} has {total_connections} connections. Use smart_reconnect to preserve flow."
         
-        success = self.diagram_builder.remove_shape_with_connector_management(shape_id, reconnect_mode)
+        outcome = self.diagram_builder.remove_shape_with_connector_management(shape_id, reconnect_mode)
+        # Support both old (bool) and new (bool, reason) return shapes
+        if isinstance(outcome, tuple):
+            success, reason = outcome
+        else:
+            success, reason = bool(outcome), ""
         if success:
             mode_desc = {
                 "smart_reconnect": "with smart reconnection",
@@ -652,10 +691,20 @@ class VisioTools:
             )
             return result
         else:
-            error_msg = f"✗ Failed to remove shape {shape_identifier}. Check console for details."
+            _reason_hints = {
+                "NO_SHAPE": "Shape ID not found on the current page. Call analyze_template to list valid IDs.",
+                "IS_CONNECTOR": "Target is a connector, not a shape. Use remove_shape on non-connector shapes only.",
+                "SAVE_REQUIRED": "Diagram must be saved and reloaded before shapes can be removed.",
+                "EDGE_ERROR": "Connector-management step encountered an error (see detail below).",
+            }
+            base_code = reason.split(":")[0] if reason else ""
+            hint = _reason_hints.get(base_code, "")
+            reason_detail = f" [{reason}]" if reason else ""
+            hint_detail = f" Hint: {hint}" if hint else ""
+            error_msg = f"✗ Failed to remove shape {shape_identifier}.{reason_detail}{hint_detail}"
             log_operation(
                 operation="remove_shape_smart",
-                details={"shape_id": shape_id, "reconnect_mode": reconnect_mode},
+                details={"shape_id": shape_id, "reconnect_mode": reconnect_mode, "reason": reason},
                 result=error_msg,
                 success=False
             )
@@ -2764,7 +2813,10 @@ class VisioTools:
                 "from_glue_point": final_from_glue,
                 "to_glue_point": final_to_glue,
                 "edge_key": edge_key,
-                "error": "Failed to create connector"
+                "error": (
+                    getattr(self.diagram_builder, "last_connector_error", None)
+                    or "Failed to create connector"
+                ),
             }
             
             error_msg = f"✗ Failed to add/update connector between '{from_node_key}' and '{to_node_key}'"

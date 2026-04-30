@@ -1,25 +1,30 @@
 """
 Utilities to render Visio (.vsdx) files to PNG for frontend preview.
 
-Pipeline (best-effort, no PyPI deps):
-- LibreOffice (soffice) headless converts .vsdx -> .pdf
-- Poppler (pdftocairo) renders a single PDF page -> .png
+Layered rendering pipeline (first backend that succeeds wins):
+
+1. Microsoft Visio (COM)            - Windows + Visio installed: best fidelity, no watermark
+2. Aspose.Diagram                   - Cross-platform: high fidelity (trial adds watermark)
+3. LibreOffice (soffice) + Poppler  - Fallback: limited VSDX support; may produce blank pages
 
 Caching strategy:
 - Cache under system temp directory (e.g., %TEMP%/visio_renders on Windows, /tmp/visio_renders on Unix)
-- Uses sha1(path+mtime+page+scale) for cache keys
-- Reuse PDF/PNG if source .vsdx hasn't changed.
+- Cache key: sha1(path + mtime + page + dpi + backend)
+- Reuse cached PNG if source .vsdx hasn't changed.
 """
 
-import hashlib
+from __future__ import annotations
+
 import base64
+import hashlib
+import logging
 import os
+import platform
 import shutil
 import subprocess
 import tempfile
-import logging
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 from .exceptions import FileError, VisioError
 
@@ -33,6 +38,21 @@ ALLOWED_ROOTS = [
     "tests",
 ]
 
+# Order in which backends are attempted. Override via VISIO_RENDER_BACKENDS env var
+# (comma-separated list). Names: visio_com, aspose, libreoffice.
+_DEFAULT_BACKEND_ORDER = ("visio_com", "aspose", "libreoffice")
+
+# Common Windows install locations for soffice.exe (not always in PATH).
+_WINDOWS_SOFFICE_HINTS = (
+    r"C:\Program Files\LibreOffice\program\soffice.exe",
+    r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+)
+
+
+# ---------------------------------------------------------------------------
+# Path / cache helpers
+# ---------------------------------------------------------------------------
+
 
 def _resolve_repo_root() -> Path:
     try:
@@ -42,12 +62,9 @@ def _resolve_repo_root() -> Path:
         return Path.cwd()
 
 
-def _allowed_roots_abs() -> list[Path]:
+def _allowed_roots_abs() -> List[Path]:
     root = _resolve_repo_root()
-    abs_roots: list[Path] = []
-    for rel in ALLOWED_ROOTS:
-        abs_roots.append((root / rel).resolve())
-    return abs_roots
+    return [(root / rel).resolve() for rel in ALLOWED_ROOTS]
 
 
 def _is_allowed_path(vsdx_path: Path, allowed_extra: Optional[Path] = None) -> bool:
@@ -60,48 +77,261 @@ def _is_allowed_path(vsdx_path: Path, allowed_extra: Optional[Path] = None) -> b
             except Exception:
                 pass
         for base in _allowed_roots_abs():
-            if str(p).startswith(str(base)):
+            try:
+                p.relative_to(base)
                 return True
+            except ValueError:
+                continue
+        # Also allow files inside the system temp dir (e.g. temp_analysis_*.vsdx)
+        try:
+            p.relative_to(Path(tempfile.gettempdir()).resolve())
+            return True
+        except ValueError:
+            pass
         return False
     except Exception:
         return False
 
 
-def _require_cmd(name: str) -> str:
-    path = shutil.which(name)
-    if not path:
-        raise VisioError(
-            f"Missing dependency: '{name}'. Install system packages 'libreoffice' and 'poppler-utils'.\n"
-            f"To verify installation, run: {name} --version"
-        )
-    return path
+def _sha1(text: str) -> str:
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+def _cache_root() -> Path:
+    root = Path(tempfile.gettempdir()) / "visio_renders"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def _scale_to_dpi(scale: float) -> int:
+    try:
+        return max(72, int(96 * float(scale or 1.0)))
+    except Exception:
+        return 192
 
 
 def _list_temp_dir_contents(dir_path: Path) -> List[str]:
-    """List files in a temp directory for diagnostics. Returns sanitized file names (no full paths)."""
     try:
         return [f.name for f in dir_path.iterdir() if f.is_file()]
-    except Exception as e:
-        return [f"<error listing dir: {e}>"]
+    except Exception as exc:
+        return [f"<error listing dir: {exc}>"]
+
+
+# ---------------------------------------------------------------------------
+# Backend: Microsoft Visio (COM, Windows only)
+# ---------------------------------------------------------------------------
+
+
+def _visio_com_available() -> bool:
+    if platform.system() != "Windows":
+        return False
+    try:
+        import win32com.client  # noqa: F401  (import side-effect check only)
+    except Exception:
+        return False
+    # Probing CLSID is too heavy for a hot path; trust the import and let the
+    # actual Dispatch fail downstream if Visio isn't installed.
+    return True
+
+
+def _render_with_visio_com(src: Path, page: int, dpi: int, out_png: Path) -> None:
+    """Render via Microsoft Visio COM automation."""
+    import pythoncom  # type: ignore
+    import win32com.client  # type: ignore
+
+    # COM must be initialized on the calling thread (Visio's automation server
+    # is STA). uvicorn's reload thread does not initialize it for us.
+    pythoncom.CoInitialize()
+    app = None
+    doc = None
+    try:
+        try:
+            app = win32com.client.DispatchEx("Visio.InvisibleApp")
+        except Exception:
+            # Some installs only expose Visio.Application
+            app = win32com.client.DispatchEx("Visio.Application")
+            try:
+                app.Visible = False
+            except Exception:
+                pass
+
+        # Suppress all dialogs / alerts during automation.
+        try:
+            app.AlertResponse = 7  # vbCancel
+        except Exception:
+            pass
+        try:
+            app.DeferRecalc = 1
+        except Exception:
+            pass
+
+        # Configure raster export resolution to the requested DPI.
+        try:
+            settings = app.Settings
+            # 1 = visRasterPixel; 2 = visRasterUseDocResolution.
+            # We instead supply explicit DPI via RasterExportResolution* values.
+            settings.RasterExportResolution = 0  # custom
+            settings.RasterExportResolutionX = dpi
+            settings.RasterExportResolutionY = dpi
+            # 0 = pixels per inch
+            settings.RasterExportResolutionUnit = 0
+        except Exception as exc:  # nosec - non-fatal: fall back to default DPI
+            logger.debug("Visio raster settings adjustment failed: %s", exc)
+
+        # 0x10 = visOpenRO, 0x40 = visOpenMinimized, 0x80 = visOpenDocked
+        flags = 0x10 | 0x40 | 0x80
+        doc = app.Documents.OpenEx(str(src), flags)
+
+        page_count = doc.Pages.Count
+        if page < 0 or page >= page_count:
+            raise FileError(
+                f"Page {page} out of range (document has {page_count} page(s))",
+                filepath=str(src),
+            )
+
+        # Visio Pages collection is 1-based.
+        target_page = doc.Pages.Item(page + 1)
+
+        out_png.parent.mkdir(parents=True, exist_ok=True)
+        if out_png.exists():
+            try:
+                out_png.unlink()
+            except Exception:
+                pass
+        target_page.Export(str(out_png))
+
+        if not out_png.exists() or out_png.stat().st_size == 0:
+            raise VisioError(
+                "Microsoft Visio Export() produced no output. "
+                "The document may be corrupted or restricted by IRM."
+            )
+    except FileError:
+        raise
+    except VisioError:
+        raise
+    except Exception as exc:
+        raise VisioError(f"Microsoft Visio COM render failed: {exc}") from exc
+    finally:
+        try:
+            if doc is not None:
+                doc.Close()
+        except Exception:
+            pass
+        try:
+            if app is not None:
+                app.Quit()
+        except Exception:
+            pass
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# Backend: Aspose.Diagram
+# ---------------------------------------------------------------------------
+
+
+def _aspose_available() -> bool:
+    try:
+        import aspose.diagram  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _try_apply_aspose_license() -> None:
+    """Best-effort license activation. Looks for ASPOSE_LICENSE_PATH env or
+    common files at the repo root. Silent on failure (trial mode kicks in)."""
+    candidates: List[Path] = []
+    env_path = os.getenv("ASPOSE_LICENSE_PATH")
+    if env_path:
+        candidates.append(Path(env_path))
+    repo_root = _resolve_repo_root()
+    for name in ("Aspose.Diagram.lic", "Aspose.Total.lic"):
+        candidates.append(repo_root / name)
+        candidates.append(repo_root / "scripts" / name)
+
+    for cand in candidates:
+        try:
+            if not cand.is_file():
+                continue
+            from aspose.diagram import License  # type: ignore
+            License().set_license(str(cand))
+            logger.info("Aspose.Diagram license applied from %s", cand)
+            return
+        except Exception as exc:
+            logger.debug("Aspose license attempt failed (%s): %s", cand, exc)
+
+
+_aspose_license_applied = False
+
+
+def _render_with_aspose(src: Path, page: int, dpi: int, out_png: Path) -> None:
+    global _aspose_license_applied
+    try:
+        from aspose.diagram import Diagram, SaveFileFormat
+        from aspose.diagram.saving import ImageSaveOptions
+    except Exception as exc:
+        raise VisioError(f"Aspose.Diagram not available: {exc}") from exc
+
+    if not _aspose_license_applied:
+        _try_apply_aspose_license()
+        _aspose_license_applied = True
+
+    try:
+        diagram = Diagram(str(src))
+        page_count = diagram.pages.count
+        if page < 0 or page >= page_count:
+            raise FileError(
+                f"Page {page} out of range (document has {page_count} page(s))",
+                filepath=str(src),
+            )
+        opts = ImageSaveOptions(SaveFileFormat.PNG)
+        opts.page_index = page
+        try:
+            opts.resolution = float(dpi)
+        except Exception:
+            pass
+        out_png.parent.mkdir(parents=True, exist_ok=True)
+        diagram.save(str(out_png), opts)
+        if not out_png.exists() or out_png.stat().st_size == 0:
+            raise VisioError("Aspose.Diagram produced no output PNG")
+    except FileError:
+        raise
+    except VisioError:
+        raise
+    except Exception as exc:
+        raise VisioError(f"Aspose.Diagram render failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# Backend: LibreOffice + Poppler (existing best-effort approach)
+# ---------------------------------------------------------------------------
+
+
+def _which_or_hint(name: str, hints: Tuple[str, ...] = ()) -> Optional[str]:
+    found = shutil.which(name)
+    if found:
+        return found
+    if platform.system() == "Windows" and name == "soffice":
+        for hint in hints or _WINDOWS_SOFFICE_HINTS:
+            if Path(hint).is_file():
+                return hint
+    return None
+
+
+def _libreoffice_available() -> bool:
+    return _which_or_hint("soffice") is not None and (
+        shutil.which("pdftocairo") is not None or shutil.which("pdftoppm") is not None
+    )
 
 
 def _run_subprocess_with_diagnostics(
-    cmd: List[str],
-    work_dir: Path,
-    operation: str,
-    timeout: int = 30
+    cmd: List[str], work_dir: Path, operation: str, timeout: int = 60
 ) -> Tuple[int, str, str]:
-    """
-    Run subprocess and capture diagnostics for error reporting.
-    
-    Returns:
-        (returncode, stdout, stderr)
-    
-    Raises:
-        VisioError on failure with detailed diagnostics
-    """
-    logger.debug(f"{operation}: Running command: {' '.join(cmd)}")
-    
+    logger.debug("%s: running %s", operation, " ".join(cmd))
     try:
         result = subprocess.run(
             cmd,
@@ -111,46 +341,27 @@ def _run_subprocess_with_diagnostics(
             timeout=timeout,
             check=False,
         )
-        
-        returncode = result.returncode
-        stdout = result.stdout.strip() if result.stdout else ""
-        stderr = result.stderr.strip() if result.stderr else ""
-        
-        # Log outputs (truncate if too large)
-        if stdout:
-            logger.debug(f"{operation} stdout (truncated): {stdout[:500]}")
-        if stderr:
-            logger.debug(f"{operation} stderr (truncated): {stderr[:500]}")
-        logger.debug(f"{operation} return code: {returncode}")
-        
-        return returncode, stdout, stderr
-        
-    except subprocess.TimeoutExpired as e:
-        logger.error(f"{operation} timed out after {timeout}s")
-        raise VisioError(
-            f"{operation} timed out after {timeout}s. "
-            f"Command: {' '.join(cmd)}\n"
-            f"This may indicate LibreOffice is hanging. Try: killall soffice.bin"
+        return (
+            result.returncode,
+            (result.stdout or "").strip(),
+            (result.stderr or "").strip(),
         )
-    except Exception as e:
-        logger.error(f"{operation} subprocess error: {e}")
+    except subprocess.TimeoutExpired:
         raise VisioError(
-            f"{operation} failed with exception: {e}\n"
-            f"Command: {' '.join(cmd)}"
+            f"{operation} timed out after {timeout}s. Command: {' '.join(cmd)}"
         )
-
-
-def _sha1(text: str) -> str:
-    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+    except Exception as exc:
+        raise VisioError(f"{operation} subprocess error: {exc}") from exc
 
 
 def _get_pdf_pages(pdf_path: Path) -> Optional[int]:
-    """Return number of pages using pdfinfo if available; None if unknown."""
     info = shutil.which("pdfinfo")
     if not info:
         return None
     try:
-        out = subprocess.check_output([info, str(pdf_path)], stderr=subprocess.STDOUT, text=True)
+        out = subprocess.check_output(
+            [info, str(pdf_path)], stderr=subprocess.STDOUT, text=True
+        )
         for line in out.splitlines():
             if line.strip().lower().startswith("pages:"):
                 parts = line.split(":", 1)
@@ -161,320 +372,267 @@ def _get_pdf_pages(pdf_path: Path) -> Optional[int]:
     return None
 
 
+def _render_with_libreoffice(src: Path, page: int, dpi: int, out_png: Path) -> None:
+    soffice = _which_or_hint("soffice")
+    if not soffice:
+        raise VisioError(
+            "LibreOffice 'soffice' not found. Install LibreOffice and ensure it is on PATH."
+        )
+    pdftocairo = shutil.which("pdftocairo")
+    pdftoppm = shutil.which("pdftoppm")
+    if not pdftocairo and not pdftoppm:
+        raise VisioError(
+            "Neither 'pdftocairo' nor 'pdftoppm' found. Install poppler-utils."
+        )
+
+    work_dir = out_png.parent / f"work_{out_png.stem}"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = work_dir / f"{src.stem}.pdf"
+
+    if not pdf_path.exists() or pdf_path.stat().st_mtime < src.stat().st_mtime:
+        # Copy source into work dir to avoid clutter / locks in the original tree.
+        local_vsdx = work_dir / src.name
+        if not local_vsdx.exists() or local_vsdx.stat().st_mtime < src.stat().st_mtime:
+            shutil.copy2(str(src), str(local_vsdx))
+        rc, _, stderr = _run_subprocess_with_diagnostics(
+            [
+                soffice,
+                "--headless",
+                "--nologo",
+                "--nodefault",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                str(work_dir),
+                str(local_vsdx),
+            ],
+            work_dir=work_dir,
+            operation="LibreOffice PDF conversion",
+        )
+        if rc != 0 or not pdf_path.exists() or pdf_path.stat().st_size == 0:
+            raise VisioError(
+                f"LibreOffice failed to convert VSDX -> PDF (exit {rc}). "
+                f"Stderr: {stderr[:200] if stderr else '(empty)'}"
+            )
+
+    pages = _get_pdf_pages(pdf_path)
+    if pages is not None and page >= pages:
+        raise FileError(
+            f"Page {page} out of range (PDF has {pages} pages). "
+            "LibreOffice often only converts the first page of multi-page VSDX files.",
+            filepath=str(src),
+        )
+
+    one_based = page + 1
+    out_prefix = out_png.with_suffix("")
+    if pdftocairo:
+        rc, _, stderr = _run_subprocess_with_diagnostics(
+            [
+                pdftocairo,
+                "-png",
+                "-singlefile",
+                "-f",
+                str(one_based),
+                "-l",
+                str(one_based),
+                "-r",
+                str(dpi),
+                str(pdf_path),
+                str(out_prefix),
+            ],
+            work_dir=work_dir,
+            operation="pdftocairo PNG render",
+        )
+        if rc == 0 and out_png.exists() and out_png.stat().st_size > 0:
+            return
+
+    if pdftoppm:
+        rc, _, stderr = _run_subprocess_with_diagnostics(
+            [
+                pdftoppm,
+                "-png",
+                "-f",
+                str(one_based),
+                "-l",
+                str(one_based),
+                "-r",
+                str(dpi),
+                "-singlefile",
+                str(pdf_path),
+                str(out_prefix),
+            ],
+            work_dir=work_dir,
+            operation="pdftoppm PNG render",
+        )
+        if rc == 0 and out_png.exists() and out_png.stat().st_size > 0:
+            return
+
+    raise VisioError(
+        "Both pdftocairo and pdftoppm failed to produce PNG output. "
+        f"Last stderr: {stderr[:200] if stderr else '(empty)'}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Backend orchestration
+# ---------------------------------------------------------------------------
+
+
+def _backend_order() -> List[str]:
+    raw = os.getenv("VISIO_RENDER_BACKENDS")
+    if not raw:
+        return list(_DEFAULT_BACKEND_ORDER)
+    order = [b.strip().lower() for b in raw.split(",") if b.strip()]
+    return order or list(_DEFAULT_BACKEND_ORDER)
+
+
+def _is_blank_png(png_path: Path) -> bool:
+    """Heuristic: if a PNG has fewer than 3 unique colors AND the dominant
+    color covers >99.5% of pixels, treat it as a blank/empty render. Used to
+    detect LibreOffice's silent failure mode."""
+    try:
+        from PIL import Image  # type: ignore
+    except Exception:
+        return False
+    try:
+        with Image.open(png_path) as im:
+            small = im.convert("RGB").resize((64, 64))
+            colors = small.getcolors(maxcolors=64 * 64) or []
+            if len(colors) <= 2:
+                total = sum(count for count, _ in colors) or 1
+                top = max(count for count, _ in colors)
+                if top / total > 0.995:
+                    return True
+        return False
+    except Exception:
+        return False
+
+
 def render_vsdx_page_to_png(
     vsdx_path: str,
     page: int = 0,
     scale: float = 2.0,
     allowed_extra_path: Optional[str] = None,
 ) -> bytes:
-    """
-    Render a .vsdx file page to PNG bytes.
+    """Render a .vsdx page to PNG bytes using the first available backend.
 
     Args:
-        vsdx_path: Path to the .vsdx file (must be under an allowed directory)
-        page: 0-based page index
-        scale: Scale multiplier (1.0 ~ ~96 DPI). We render at DPI = 96*scale.
-
-    Returns:
-        PNG bytes.
+        vsdx_path: Path to the .vsdx file (must be under an allowed directory
+            or explicitly whitelisted via ``allowed_extra_path``).
+        page: 0-based page index.
+        scale: Render scale multiplier; ``1.0`` ≈ 96 DPI, so DPI = ``int(96 * scale)``.
+        allowed_extra_path: Additional path to whitelist beyond default roots.
     """
+
     if page < 0:
         raise FileError("Page index must be >= 0", filepath=vsdx_path)
-    try:
-        dpi = max(72, int(96 * float(scale or 1.0)))
-    except Exception:
-        dpi = 192  # default 2x
+    dpi = _scale_to_dpi(scale)
 
     src = Path(vsdx_path)
     if not src.exists():
         raise FileError("Visio file not found", filepath=vsdx_path)
+    src = src.resolve()
+
     extra = Path(allowed_extra_path).resolve() if allowed_extra_path else None
     if not _is_allowed_path(src, allowed_extra=extra):
-        allowed_list = " | ".join([str(p) for p in _allowed_roots_abs()])
+        roots = " | ".join(str(p) for p in _allowed_roots_abs())
         raise FileError(
-            f"Access denied. Path must be under allowed roots: {allowed_list}", filepath=str(src)
+            f"Access denied. Path must be under allowed roots: {roots}",
+            filepath=str(src),
         )
 
-    soffice = _require_cmd("soffice")
-    pdftocairo = _require_cmd("pdftocairo")
+    cache = _cache_root()
+    mtime = int(src.stat().st_mtime)
 
-    # Cache directory - use platform-appropriate temp location
-    cache_root = Path(tempfile.gettempdir()) / "visio_renders"
-    cache_root.mkdir(parents=True, exist_ok=True)
+    backends_attempted: List[str] = []
+    failures: List[str] = []
+    last_blank_path: Optional[Path] = None
 
-    # Build keys
-    mtime = src.stat().st_mtime
-    key_base = f"{src.resolve()}|{mtime}|{page}|{dpi}"
-    key = _sha1(key_base)
-    work_dir = cache_root / f"work_{key}"
-    work_dir.mkdir(parents=True, exist_ok=True)
+    for backend in _backend_order():
+        cache_key = _sha1(f"{src}|{mtime}|{page}|{dpi}|{backend}")
+        cached = cache / f"{cache_key}.png"
 
-    cached_png = cache_root / f"{key}.png"
-    if cached_png.exists():
-        return cached_png.read_bytes()
+        if cached.exists() and cached.stat().st_size > 0 and not _is_blank_png(cached):
+            logger.debug("render_vsdx_page_to_png: cache hit (%s)", backend)
+            return cached.read_bytes()
 
-    # Convert VSDX -> PDF (in work dir)
-    # Use soffice to write output PDF into work_dir
-    try:
-        pdf_path = work_dir / f"{src.stem}.pdf"
-        need_pdf = True
-        if pdf_path.exists():
-            # If existing PDF is newer than source VSDX, reuse
-            need_pdf = pdf_path.stat().st_mtime < src.stat().st_mtime
-        if (not pdf_path.exists()) or need_pdf:
-            # Copy source into work dir to avoid clutter
-            local_vsdx = work_dir / src.name
-            if not local_vsdx.exists() or local_vsdx.stat().st_mtime < src.stat().st_mtime:
-                shutil.copy2(str(src), str(local_vsdx))
-            
-            # Attempt 1: Try PDF export (existing approach)
-            logger.debug("Attempting LibreOffice PDF conversion")
-            returncode, stdout, stderr = _run_subprocess_with_diagnostics(
-                [
-                    soffice,
-                    "--headless",
-                    "--nologo",
-                    "--nodefault",
-                    "--convert-to",
-                    "pdf",
-                    "--outdir",
-                    str(work_dir),
-                    str(local_vsdx),
-                ],
-                work_dir=work_dir,
-                operation="LibreOffice PDF conversion",
-            )
-            
-            if returncode != 0:
-                logger.warning(f"LibreOffice PDF conversion failed with code {returncode}")
-            
-            # Check if output was produced
-            if not pdf_path.exists() or pdf_path.stat().st_size == 0:
-                # Fallback 2: Try direct-to-PNG via soffice
-                logger.debug("PDF conversion failed, attempting direct PNG conversion")
-                png_direct = work_dir / f"{src.stem}.png"
-                returncode2, stdout2, stderr2 = _run_subprocess_with_diagnostics(
-                    [
-                        soffice,
-                        "--headless",
-                        "--nologo",
-                        "--nodefault",
-                        "--convert-to",
-                        "png",
-                        "--outdir",
-                        str(work_dir),
-                        str(local_vsdx),
-                    ],
-                    work_dir=work_dir,
-                    operation="LibreOffice PNG conversion",
-                )
-                
-                if png_direct.exists() and png_direct.stat().st_size > 0:
-                    # Success via direct PNG! Return it immediately
-                    logger.info("Direct PNG conversion succeeded")
-                    cached_png.write_bytes(png_direct.read_bytes())
-                    return cached_png.read_bytes()
-                
-                # Fallback 3: Try unoconv if available
-                unoconv_path = shutil.which("unoconv")
-                if unoconv_path:
-                    logger.debug("Attempting unoconv PDF conversion")
-                    returncode3, stdout3, stderr3 = _run_subprocess_with_diagnostics(
-                        [
-                            unoconv_path,
-                            "-f",
-                            "pdf",
-                            "-o",
-                            str(pdf_path),
-                            str(local_vsdx),
-                        ],
-                        work_dir=work_dir,
-                        operation="unoconv PDF conversion",
-                    )
-                    
-                    if returncode3 != 0:
-                        logger.warning(f"unoconv conversion failed with code {returncode3}")
-                
-                # Check again if PDF was produced by any method
-                if not pdf_path.exists() or pdf_path.stat().st_size == 0:
-                    # All conversion attempts failed
-                    temp_files = _list_temp_dir_contents(work_dir)
-                    logger.error(f"All conversion methods failed. Temp dir contents: {temp_files}")
-                    
-                    diagnostic_msg = (
-                        "PDF conversion failed; no output produced by LibreOffice.\n\n"
-                        "Diagnostics:\n"
-                        f"  - Attempted command 1 (PDF): {soffice} --headless --convert-to pdf\n"
-                        f"    Return code: {returncode}, Stderr: {stderr[:200] if stderr else '(empty)'}\n"
-                        f"  - Attempted command 2 (PNG): {soffice} --headless --convert-to png\n"
-                        f"    Return code: {returncode2}, Stderr: {stderr2[:200] if stderr2 else '(empty)'}\n"
-                    )
-                    
-                    if unoconv_path:
-                        diagnostic_msg += f"  - Attempted command 3 (unoconv): {unoconv_path} -f pdf\n"
-                        diagnostic_msg += f"    Return code: {returncode3}, Stderr: {stderr3[:200] if stderr3 else '(empty)'}\n"
-                    
-                    diagnostic_msg += (
-                        f"  - Temp directory: {work_dir}\n"
-                        f"  - Files in temp dir: {', '.join(temp_files) if temp_files else '(none)'}\n\n"
-                        "Troubleshooting steps:\n"
-                        f"  1. Verify LibreOffice is installed: {soffice} --headless --version\n"
-                        f"  2. Check which/where soffice: which {soffice} (Linux/Mac) or where {soffice} (Windows)\n"
-                        f"  3. Inspect temp directory: ls -la {work_dir}\n"
-                        f"  4. Try manual conversion: {soffice} --headless --convert-to pdf {local_vsdx}\n"
-                    )
-                    
-                    raise VisioError(diagnostic_msg)
-    except VisioError:
-        raise
-    except subprocess.CalledProcessError as e:
-        raise VisioError(f"LibreOffice conversion error (exit {e.returncode})")
-    except Exception as e:
-        logger.error(f"Unexpected error during conversion: {e}")
-        raise VisioError(f"Conversion failed: {e}")
-
-    # Optional: validate page range via pdfinfo
-    pages = _get_pdf_pages(pdf_path)
-    if pages is not None and page >= pages:
-        # LibreOffice has a known limitation: it only converts the first page of multi-page VSDX files
-        # Check if the VSDX actually has more pages
         try:
-            from vsdx import VisioFile
-            with VisioFile(str(src)) as vis:
-                total_vsdx_pages = len(vis.pages)
-                if page < total_vsdx_pages:
-                    # VSDX has the page, but LibreOffice didn't convert it
-                    raise VisioError(
-                        f"Cannot preview page {page}. LibreOffice only converted page 0 from this {total_vsdx_pages}-page VSDX file. "
-                        f"This is a known LibreOffice limitation with multi-page VSDX files. "
-                        f"To preview other pages, please open the file in Microsoft Visio or use visio_tools to extract individual pages."
+            if backend == "visio_com":
+                if not _visio_com_available():
+                    failures.append(f"{backend}: not available on this platform")
+                    continue
+                backends_attempted.append(backend)
+                _render_with_visio_com(src, page, dpi, cached)
+            elif backend == "aspose":
+                if not _aspose_available():
+                    failures.append(f"{backend}: aspose.diagram not installed")
+                    continue
+                backends_attempted.append(backend)
+                _render_with_aspose(src, page, dpi, cached)
+            elif backend == "libreoffice":
+                if not _libreoffice_available():
+                    failures.append(
+                        f"{backend}: soffice and/or poppler-utils not on PATH"
                     )
-                else:
-                    # Page doesn't exist in VSDX either
-                    raise FileError(
-                        f"Page {page} out of range (VSDX has {total_vsdx_pages} pages, PDF has {pages})",
-                        filepath=str(src),
-                    )
-        except (ImportError, VisioError):
-            raise
+                    continue
+                backends_attempted.append(backend)
+                _render_with_libreoffice(src, page, dpi, cached)
+            else:
+                failures.append(f"{backend}: unknown backend")
+                continue
         except FileError:
             raise
-        except Exception:
-            # If we can't check the VSDX, just report the PDF limitation
-            raise FileError(
-                f"Page {page} out of range (PDF has {pages} pages)",
-                filepath=str(src),
-            )
+        except VisioError as exc:
+            failures.append(f"{backend}: {exc}")
+            logger.warning("Render backend '%s' failed: %s", backend, exc)
+            continue
+        except Exception as exc:  # pragma: no cover - defensive
+            failures.append(f"{backend}: unexpected {type(exc).__name__}: {exc}")
+            logger.exception("Render backend '%s' raised", backend)
+            continue
 
-    # Render single page -> PNG
-    # pdftocairo -png -singlefile -f <1-based> -l <1-based> -r <dpi> <pdf> <outprefix>
-    one_based = page + 1
-    out_prefix = cache_root / f"{key}"
-    
-    # Try pdftocairo first
-    logger.debug("Attempting PDF to PNG with pdftocairo")
-    returncode, stdout, stderr = _run_subprocess_with_diagnostics(
-        [
-            pdftocairo,
-            "-png",
-            "-singlefile",
-            "-f",
-            str(one_based),
-            "-l",
-            str(one_based),
-            "-r",
-            str(dpi),
-            str(pdf_path),
-            str(out_prefix),
-        ],
-        work_dir=work_dir,
-        operation="pdftocairo PNG render",
+        if not cached.exists() or cached.stat().st_size == 0:
+            failures.append(f"{backend}: produced no output file")
+            continue
+
+        if _is_blank_png(cached):
+            failures.append(
+                f"{backend}: output is a blank page (likely silent conversion failure)"
+            )
+            last_blank_path = cached
+            continue
+
+        logger.info("Rendered %s page %d via %s (%d DPI)", src.name, page, backend, dpi)
+        return cached.read_bytes()
+
+    # If every non-blank backend failed but we have a blank-but-valid PNG, return it
+    # rather than erroring out, with a clear log warning.
+    if last_blank_path is not None and last_blank_path.exists():
+        logger.warning(
+            "All non-blank backends failed; returning blank fallback render. "
+            "Failures: %s",
+            "; ".join(failures),
+        )
+        return last_blank_path.read_bytes()
+
+    diag = "\n".join(f"  - {f}" for f in failures) or "  - (no backends ran)"
+    raise VisioError(
+        "Could not render VSDX to PNG. Backend failures:\n"
+        f"{diag}\n\n"
+        "Suggestions:\n"
+        "  • On Windows: install Microsoft Visio (best fidelity) or `pip install aspose-diagram-python`.\n"
+        "  • On Linux/macOS: install `libreoffice` and `poppler-utils`, or `pip install aspose-diagram-python`.\n"
+        f"  • Override backend order with VISIO_RENDER_BACKENDS=visio_com,aspose,libreoffice\n"
+        f"  • Tried backends (in order): {', '.join(backends_attempted) or '(none)'}"
     )
-    
-    # pdftocairo creates <prefix>.png when -singlefile is used
-    if not cached_png.exists() or cached_png.stat().st_size == 0:
-        # Fallback: Try pdftoppm if available
-        pdftoppm_path = shutil.which("pdftoppm")
-        if pdftoppm_path:
-            logger.debug("pdftocairo failed, trying pdftoppm")
-            returncode2, stdout2, stderr2 = _run_subprocess_with_diagnostics(
-                [
-                    pdftoppm_path,
-                    "-png",
-                    "-f",
-                    str(one_based),
-                    "-l",
-                    str(one_based),
-                    "-r",
-                    str(dpi),
-                    "-singlefile",
-                    str(pdf_path),
-                    str(out_prefix),
-                ],
-                work_dir=work_dir,
-                operation="pdftoppm PNG render",
-            )
-            
-            if not cached_png.exists() or cached_png.stat().st_size == 0:
-                # Fallback: Try ImageMagick convert if available
-                convert_path = shutil.which("convert")
-                if convert_path:
-                    logger.debug("pdftoppm failed, trying ImageMagick convert")
-                    # ImageMagick: convert -density <dpi> pdf[page] png
-                    returncode3, stdout3, stderr3 = _run_subprocess_with_diagnostics(
-                        [
-                            convert_path,
-                            "-density",
-                            str(dpi),
-                            f"{pdf_path}[{page}]",
-                            str(cached_png),
-                        ],
-                        work_dir=work_dir,
-                        operation="ImageMagick PNG render",
-                    )
-        
-        # Final check
-        if not cached_png.exists() or cached_png.stat().st_size == 0:
-            temp_files = _list_temp_dir_contents(work_dir)
-            logger.error(f"PNG render failed. Temp dir contents: {temp_files}")
-            
-            diagnostic_msg = (
-                "PNG render failed; output file missing or empty.\n\n"
-                "Diagnostics:\n"
-                f"  - PDF path: {pdf_path} (exists: {pdf_path.exists()}, size: {pdf_path.stat().st_size if pdf_path.exists() else 0})\n"
-                f"  - Expected PNG: {cached_png}\n"
-                f"  - Attempted command 1 (pdftocairo): Return code: {returncode}\n"
-                f"    Stderr: {stderr[:200] if stderr else '(empty)'}\n"
-            )
-            
-            if pdftoppm_path:
-                diagnostic_msg += f"  - Attempted command 2 (pdftoppm): Return code: {returncode2}\n"
-                diagnostic_msg += f"    Stderr: {stderr2[:200] if stderr2 else '(empty)'}\n"
-            
-            convert_path = shutil.which("convert")
-            if convert_path:
-                diagnostic_msg += f"  - Attempted command 3 (ImageMagick): Return code: {returncode3}\n"
-                diagnostic_msg += f"    Stderr: {stderr3[:200] if stderr3 else '(empty)'}\n"
-            
-            diagnostic_msg += (
-                f"  - Files in temp dir: {', '.join(temp_files) if temp_files else '(none)'}\n\n"
-                "Troubleshooting:\n"
-                "  1. Check PDF is valid: pdfinfo {}\n"
-                "  2. Verify poppler-utils: pdftocairo --version\n"
-                "  3. Try manual render: pdftocairo -png {} output\n"
-            ).format(pdf_path, pdf_path)
-            
-            raise VisioError(diagnostic_msg)
-    
-    # Verify output is non-empty
-    if cached_png.stat().st_size == 0:
-        raise VisioError(f"PNG render produced empty file: {cached_png}")
-    
-    return cached_png.read_bytes()
+
+
+# ---------------------------------------------------------------------------
+# Public helpers
+# ---------------------------------------------------------------------------
 
 
 def png_to_data_uri(png_bytes: bytes) -> str:
-    """Return a data URI for PNG bytes."""
     b64 = base64.b64encode(png_bytes).decode("ascii")
     return f"data:image/png;base64,{b64}"
 
@@ -486,7 +644,6 @@ def render_vsdx_page_to_data_uri(
     allowed_extra_path: Optional[str] = None,
 ) -> str:
     """Render a VSDX page to a PNG data URI (base64)."""
-    # Clamp scale for safety
     try:
         s = float(scale)
     except Exception:
@@ -499,7 +656,6 @@ def render_vsdx_page_to_data_uri(
         scale=s,
         allowed_extra_path=allowed_extra_path,
     )
-    # If extremely large, suggest lowering scale
     if len(png) > 6 * 1024 * 1024:
         raise VisioError(
             "Rendered image is too large (>6MB). Try a lower scale such as 1.5 or 1.0."
@@ -514,21 +670,16 @@ def render_and_save_png(
     allowed_extra_path: Optional[str] = None,
     base_url: str = "http://localhost:7777",
 ) -> dict:
+    """Render to PNG and persist under ``outputs/static/visio/<key>.png``.
+
+    Returns a dict with keys ``url`` (relative), ``absolute_url`` and ``file``.
     """
-    Render to PNG and save under static/visio/<key>.png, returning URL and file path.
-    
-    Args:
-        base_url: Base URL for the server (default: http://localhost:7777)
-                 Use for absolute URLs in markdown rendering
-    """
-    # Clamp scale
     try:
         s = float(scale)
     except Exception:
         s = 2.0
     s = max(0.5, min(3.0, s))
 
-    # Render bytes
     png_bytes = render_vsdx_page_to_png(
         vsdx_path=vsdx_path,
         page=page,
@@ -536,27 +687,23 @@ def render_and_save_png(
         allowed_extra_path=allowed_extra_path,
     )
 
-    # Build deterministic key matching render inputs
     src = Path(vsdx_path).resolve()
-    mtime = src.stat().st_mtime
-    dpi = int(96 * s) if s >= 0.5 else 96
-    key = _sha1(f"{src}|{mtime}|{page}|{dpi}")
+    mtime = int(src.stat().st_mtime)
+    dpi = _scale_to_dpi(s)
+    key = _sha1(f"{src}|{mtime}|{page}|{dpi}|saved")
 
     repo_root = _resolve_repo_root()
     static_dir = (repo_root / "outputs" / "static" / "visio").resolve()
     static_dir.mkdir(parents=True, exist_ok=True)
 
     out_file = static_dir / f"{key}.png"
-    if not out_file.exists():
+    if not out_file.exists() or out_file.stat().st_size != len(png_bytes):
         out_file.write_bytes(png_bytes)
 
-    # Return both relative and absolute URLs
     relative_url = f"/static/visio/{key}.png"
     absolute_url = f"{base_url}{relative_url}"
     return {
         "url": relative_url,
         "absolute_url": absolute_url,
-        "file": str(out_file)
+        "file": str(out_file),
     }
-
-

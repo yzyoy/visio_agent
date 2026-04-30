@@ -62,19 +62,31 @@ def _require_env(var: str) -> str:
 
 
 DEEPSEEK_API_KEY = _require_env("DEEPSEEK_API_KEY")
+# OpenAI-compatible base must end with /v1 (not a model version like v3.2).
+# Model generation (e.g. DeepSeek V3.2) is selected via DEEPSEEK_MODEL_ID, not the URL.
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
-DEEPSEEK_MODEL_ID = os.environ.get("DEEPSEEK_MODEL_ID", "deepseek-chat")
+# Default model id maps to the current non-reasoner chat; use deepseek-reasoner for thinking.
+DEEPSEEK_MODEL_ID = os.environ.get("DEEPSEEK_MODEL_ID", "deepseek-chat").strip() or "deepseek-chat"
+DEEPSEEK_MODEL_NAME = (
+    "DeepSeek V3.2 Reasoner"
+    if DEEPSEEK_MODEL_ID == "deepseek-reasoner"
+    else "DeepSeek V3.2 Chat"
+)
 AGNO_SESSIONS_DB = os.environ.get("AGNO_SESSIONS_DB", ".state/agno_sessions.db")
 VISIO_TEMPLATE_DIR = os.environ.get("VISIO_TEMPLATE_DIR", "assets/templates")
+VISIO_DIALOG_DIR = os.environ.get("VISIO_DIALOG_DIR", ".state/dialog")
+VISIO_LOG_DIR = os.environ.get("VISIO_LOG_DIR", ".state/log")
 
-os.makedirs(".state", exist_ok=True)
+os.makedirs(os.path.dirname(AGNO_SESSIONS_DB) or ".", exist_ok=True)
+os.makedirs(VISIO_DIALOG_DIR, exist_ok=True)
+os.makedirs(VISIO_LOG_DIR, exist_ok=True)
 os.makedirs("outputs", exist_ok=True)
 
 model = OpenAIChat(
     id=DEEPSEEK_MODEL_ID,
     base_url=DEEPSEEK_BASE_URL,
     api_key=DEEPSEEK_API_KEY,
-    name="DeepSeek Chat",
+    name=DEEPSEEK_MODEL_NAME,
     timeout=120,
     max_retries=3,
 )
@@ -101,6 +113,7 @@ db = _init_sqlite_db(AGNO_SESSIONS_DB)
 visio_agent = create_visio_agent(
     model=model,
     template_dir=VISIO_TEMPLATE_DIR,
+    dialog_dir=VISIO_DIALOG_DIR,
     instruction_profile="full",
     use_dynamic_instructions=True,
     db=db,

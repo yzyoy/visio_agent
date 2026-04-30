@@ -4,25 +4,85 @@ Saves all operations to indexed log directories
 """
 import os
 import json
+import logging
 import datetime
+import threading
+import traceback as _traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
 import shutil
 import tempfile
+import time
+
+
+_handler_local = threading.local()
+
+
+class _VisioLogHandler(logging.Handler):
+    """Routes Python WARNING/ERROR/CRITICAL records into a VisioLogger session.
+
+    Uses a thread-local flag to prevent re-entrant calls when the handler
+    itself performs I/O that could trigger further log records.
+    """
+
+    def __init__(self, visio_logger: "VisioLogger", level: int = logging.WARNING):
+        super().__init__(level)
+        self._visio_logger = visio_logger
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if getattr(_handler_local, "emitting", False):
+            return
+        _handler_local.emitting = True
+        try:
+            level = record.levelname
+            msg = record.getMessage()
+
+            tb = ""
+            if record.exc_info:
+                tb = "\n" + "".join(_traceback.format_exception(*record.exc_info)).rstrip()
+
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_entry = f"[{timestamp}] [{level}] [{record.name}] {msg}{tb}\n"
+
+            with open(self._visio_logger.log_file, "a", encoding="utf-8") as fh:
+                fh.write(log_entry)
+
+            op = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "operation": f"{level}:{record.name}",
+                "details": {
+                    "logger": record.name,
+                    "level": level,
+                    "module": record.module,
+                    "lineno": record.lineno,
+                },
+                "result": msg + tb,
+                "success": record.levelno < logging.ERROR,
+            }
+            self._visio_logger.operations.append(op)
+            self._visio_logger._atomic_write_json(
+                self._visio_logger.operations_file,
+                self._visio_logger.operations,
+            )
+        except Exception:
+            pass
+        finally:
+            _handler_local.emitting = False
 
 
 class VisioLogger:
     """Logger for Visio diagram operations"""
     
-    def __init__(self, base_log_dir: str = ".state/log"):
+    def __init__(self, base_log_dir: Optional[str] = None):
         """
         Initialize logger with indexed subdirectories
         
         Args:
-            base_log_dir: Base directory for all logs
+            base_log_dir: Base directory for all logs. Defaults to
+                VISIO_LOG_DIR or .state/log.
         """
-        self.base_log_dir = Path(base_log_dir)
-        self.base_log_dir.mkdir(exist_ok=True)
+        self.base_log_dir = Path(base_log_dir or os.environ.get("VISIO_LOG_DIR", ".state/log"))
+        self.base_log_dir.mkdir(parents=True, exist_ok=True)
         
         # Find next available index
         self.session_index = self._get_next_index()
@@ -37,7 +97,12 @@ class VisioLogger:
         # Initialize logs
         self.operations = []
         self._write_metadata()
-        
+
+        # Attach Python logging bridge so WARNING/ERROR from any module
+        # (agno, visio_core, etc.) land in this session's log file.
+        self._py_log_handler = _VisioLogHandler(self)
+        logging.getLogger().addHandler(self._py_log_handler)
+
         self._log_message(f"Session started: {self.session_index}")
     
     def _get_next_index(self) -> int:
@@ -65,7 +130,17 @@ class VisioLogger:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp_path, path)
+            last_error: Optional[Exception] = None
+            for attempt in range(3):
+                try:
+                    os.replace(tmp_path, path)
+                    last_error = None
+                    break
+                except PermissionError as exc:
+                    last_error = exc
+                    time.sleep(0.05 * (attempt + 1))
+            if last_error is not None:
+                raise last_error
         finally:
             # If replace succeeded, tmp_path no longer exists; ignore errors
             try:
@@ -135,19 +210,26 @@ class VisioLogger:
         }
         
         self.operations.append(operation_log)
-        
-        # Write to operations file atomically
-        self._atomic_write_json(self.operations_file, self.operations)
-        
-        # Write to log file
+
         status = "SUCCESS" if success else "FAILED"
         self._log_message(f"[{status}] {operation}: {result}")
-        
-        # Update metadata
-        self._update_metadata(
-            operations_count=len(self.operations),
-            last_operation=operation
-        )
+
+        try:
+            self._atomic_write_json(self.operations_file, self.operations)
+        except Exception as exc:
+            self._log_message(
+                f"[WARNING] Failed to persist operations.json for {operation}: {exc}"
+            )
+
+        try:
+            self._update_metadata(
+                operations_count=len(self.operations),
+                last_operation=operation
+            )
+        except Exception as exc:
+            self._log_message(
+                f"[WARNING] Failed to update metadata for {operation}: {exc}"
+            )
     
     def log_file_operation(self, filepath: str, operation: str = "processed"):
         """Log file operation and update metadata"""
@@ -157,8 +239,13 @@ class VisioLogger:
         files_processed = metadata.get("files_processed", [])
         if filepath not in files_processed:
             files_processed.append(filepath)
-        
-        self._update_metadata(files_processed=files_processed)
+
+        try:
+            self._update_metadata(files_processed=files_processed)
+        except Exception as exc:
+            self._log_message(
+                f"[WARNING] Failed to update metadata for file operation {operation}: {exc}"
+            )
         self._log_message(f"File {operation}: {filepath}")
     
     def save_diagram_copy(self, source_path: str, label: str = "output"):
@@ -200,13 +287,35 @@ class VisioLogger:
             "last_updated": metadata.get("last_updated"),
         }
     
+    def log_warning(self, message: str, details: Optional[Dict[str, Any]] = None):
+        """Explicitly record a WARNING entry from within tool code."""
+        self._log_message(f"[WARNING] {message}")
+        op = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "operation": "WARNING",
+            "details": details or {},
+            "result": message,
+            "success": False,
+        }
+        self.operations.append(op)
+        try:
+            self._atomic_write_json(self.operations_file, self.operations)
+        except Exception as exc:
+            self._log_message(
+                f"[WARNING] Failed to persist WARNING entry to operations.json: {exc}"
+            )
+
     def close(self):
         """Close the logger session"""
+        logging.getLogger().removeHandler(self._py_log_handler)
         self._log_message(f"Session ended: {self.session_index}")
-        self._update_metadata(
-            end_time=datetime.datetime.now().isoformat(),
-            status="completed"
-        )
+        try:
+            self._update_metadata(
+                end_time=datetime.datetime.now().isoformat(),
+                status="completed"
+            )
+        except Exception as exc:
+            self._log_message(f"[WARNING] Failed to finalize session metadata: {exc}")
 
 
 # Global logger instance
@@ -243,4 +352,9 @@ def get_session_summary() -> Dict[str, Any]:
     """Get current session summary"""
     logger = get_logger()
     return logger.get_summary()
+
+
+def log_warning(message: str, details: Optional[Dict[str, Any]] = None):
+    """Convenience function to log a warning"""
+    get_logger().log_warning(message, details)
 

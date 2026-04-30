@@ -1,12 +1,11 @@
-================================================================================
-关键词提取与需求分析提示词（Keyword Extraction & Requirement Analysis）
-================================================================================
+---
+name: visio-requirement-analysis
+description: Analyze user requirements for Visio diagrams, extract keywords, identify chart types, complexity, and structural characteristics. Use when the user asks to draw or create a diagram to understand their needs before selecting a template.
+---
 
-请深入分析以下用户需求，提取关键词并理解需求的具体特征。
+# 关键词提取与需求分析 (Keyword Extraction & Requirement Analysis)
 
-用户需求描述：{chinese_text}
-
-请你完成以下任务：
+请深入分析用户的绘图或建图需求，提取关键词并理解需求的具体特征。
 
 ## 第一步：理解需求特征
 分析并识别以下信息：
@@ -38,7 +37,8 @@
 ## 输出格式要求：
 请按以下JSON格式返回（只返回JSON，不要其他内容）：
 
-{{
+```json
+{
   "keywords": "keyword1, keyword2, keyword3, ...",
   "chart_type": "图表类型（英文）",
   "complexity": "simple/medium/complex/large",
@@ -48,7 +48,16 @@
   "topology_type": "拓扑类型（从以下选择：hierarchical_tree, linear_chain, network, star, hybrid, isolated_nodes）",
   "layout_direction": "布局方向（从以下选择：vertical, horizontal, mixed）",
   "connection_type": "连接类型（从以下选择：sequential, branching, bidirectional, mesh, star_topology）"
-}}
+}
+```
+
+## 关于 template_shape_count 的使用说明
+
+分析完成后，规划器将 `estimated_shapes` 与模板评分阶段返回的 `template_shapes_count` 进行对比：
+- 若模板形状数 ≥ `estimated_shapes` 下限的 60%，推荐 **Workflow E（骨架复用）**；
+- 若模板形状数 < 20%，推荐 **Workflow B（从零搭建）**。
+
+在 JSON 输出中确保 `estimated_shapes` 是一个清晰的数字范围（如 "8-12"），以便准确做出此判断。
 
 ## 关于 estimated_shapes 字段的特别说明：
 
@@ -71,50 +80,3 @@
 - 连接关系：如有N个组件，通常需要N-1到N个连接器（但不单独计数）
 - 决策点、异常处理等：每个额外计数1-2个形状
 - 注释、标题等辅助元素：酌情增加1-3个形状
-
-## 示例：
-
-**输入**："创建一个包含用户、认证服务器、数据库的登录流程图，需要展示完整的认证流程"
-**输出**：
-{{
-  "keywords": "flowchart, login, authentication, user, database, server, process, security",
-  "chart_type": "flowchart",
-  "complexity": "medium",
-  "estimated_shapes": "8-12",
-  "architecture_pattern": "sequential process with decision points",
-  "specific_requirements": ["user authentication flow", "database interaction", "server components", "decision logic"],
-  "topology_type": "linear_chain",
-  "layout_direction": "vertical",
-  "connection_type": "sequential"
-}}
-
-**输入**："设计一个完整的AWS云架构图，包括VPC、多个子网、负载均衡器、EC2集群、RDS数据库和S3存储"
-**输出**：
-{{
-  "keywords": "AWS, cloud, architecture, VPC, subnet, load balancer, EC2, RDS, S3, network, infrastructure",
-  "chart_type": "cloud architecture diagram",
-  "complexity": "complex",
-  "estimated_shapes": "20-30",
-  "architecture_pattern": "multi-tier cloud infrastructure with networking",
-  "specific_requirements": ["VPC networking", "multiple subnets", "load balancing", "compute cluster", "database service", "storage service"],
-  "topology_type": "network",
-  "layout_direction": "mixed",
-  "connection_type": "mesh"
-}}
-
-**输入**："公司组织架构图，包括CEO、5个部门、每个部门3-4个团队"
-**输出**：
-{{
-  "keywords": "organization, hierarchy, org chart, structure, department, team, management",
-  "chart_type": "organizational chart",
-  "complexity": "medium",
-  "estimated_shapes": "20-25",
-  "architecture_pattern": "hierarchical tree structure",
-  "specific_requirements": ["CEO level", "5 departments", "3-4 teams per department", "clear reporting lines"],
-  "topology_type": "hierarchical_tree",
-  "layout_direction": "vertical",
-  "connection_type": "branching"
-}}
-
-现在请分析用户需求并返回JSON结果：
-

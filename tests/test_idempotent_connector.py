@@ -7,11 +7,15 @@ match what was authored, not what survives a naive re-index.
 """
 from __future__ import annotations
 
+import concurrent.futures
+import re
+import zipfile
 from pathlib import Path
 
 import pytest
 
 from visio_core.tools.visio_tools import VisioTools
+from visio_core.utils.diagram_builder import DiagramBuilder
 
 
 def _make_tools(tmp_path: Path, suffix: str = "") -> VisioTools:
@@ -67,3 +71,48 @@ def test_idempotent_connector_no_duplicates_after_save_reload(
         f"Connector 'E1' appears {e1_occurrences} times — idempotency "
         f"regression. Analysis tail: {analysis[-800:]}"
     )
+
+
+@pytest.mark.regression
+def test_parallel_connector_creation_no_failures(scratch_vsdx: Path, tmp_path: Path):
+    """Concurrent connect_shapes calls must not race the vsdx patch orphan cleanup."""
+    builder = DiagramBuilder.load_from_file(str(scratch_vsdx))
+    assert builder.current_page is not None
+
+    shape_ids: list[str] = []
+    for i in range(20):
+        sh = builder.add_shape(f"PC{i}", "Rectangle", float(i % 10) * 1.2, float(i // 10) * 1.5)
+        assert sh is not None, f"add_shape failed at i={i}"
+        shape_ids.append(str(sh.ID))
+
+    def _connect(i: int):
+        return builder.connect_shapes(shape_ids[2 * i], shape_ids[2 * i + 1])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(_connect, i) for i in range(10)]
+        connectors = [f.result() for f in futures]
+
+    assert all(c is not None for c in connectors), (
+        "One or more parallel connector creations returned None; "
+        f"last error: {getattr(builder, 'last_connector_error', None)}"
+    )
+
+
+@pytest.mark.regression
+def test_saved_connector_has_no_sheet_id_formula_typo(scratch_vsdx: Path, tmp_path: Path):
+    """Connectors must not emit malformed ``Sheet49!`` (missing dot) formulas."""
+    tools = _make_tools(tmp_path)
+    tools.load_diagram(str(scratch_vsdx))
+    tools.add_or_update_shape("nx_a", "A", "Rectangle", 0.5, 1.0)
+    tools.add_or_update_shape("nx_b", "B", "Rectangle", 3.0, 1.0)
+    msg = tools.add_or_update_connector("nx_a", "nx_b", label="norm")
+    assert msg.startswith("✓"), msg
+
+    save_msg = tools.save_diagram(str(scratch_vsdx))
+    assert "✓" in save_msg or "saved" in save_msg.lower(), save_msg
+
+    with zipfile.ZipFile(scratch_vsdx) as zf:
+        xml = zf.read("visio/pages/page1.xml").decode("utf-8", errors="replace")
+
+    bad = re.findall(r"Sheet\d+!", xml)
+    assert not bad, f"Malformed Sheet<id>! references in page XML: {bad[:5]}"

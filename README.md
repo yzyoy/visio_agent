@@ -32,6 +32,7 @@ agent/
 ├── refine/                  # 重构历史文档（归档，只读）
 ├── .state/                  # 运行时状态（gitignored）
 │   ├── dialog/              #   会话上下文 JSON
+│   ├── log/                 #   操作日志、metadata 与保存快照
 │   └── agno_sessions.db     #   SqliteDb
 └── outputs/                 # 生成的 .vsdx 与预览 PNG（gitignored）
 ```
@@ -53,10 +54,10 @@ python -m apps.agent_os # 访问 http://localhost:7777
 开发热重载：
 
 ```bash
-python -m uvicorn apps.agent_os:app --reload
+python -m uvicorn apps.agent_os:app --reload --port 7777 # 访问 http://localhost:7777
 ```
 
-启动时 `apps/agent_os.py` 会 **显式** 调用 `visio_core.apply_patches()` 打上 vsdx 补丁，并创建 `.state/` 与 `outputs/` 目录。
+启动时 `apps/agent_os.py` 会 **显式** 调用 `visio_core.apply_patches()` 打上 vsdx 补丁，并创建 `.state/dialog`、`.state/log` 与 `outputs/` 目录。
 
 ## 🔧 公开工具表面（15 个，不多不少）
 
@@ -154,10 +155,15 @@ Skill 文件位于 `skills/visio/SKILL.md`，强约束如下顺序：
 | 用途 | 位置 | 是否 gitignored |
 | --- | --- | --- |
 | 对话上下文 | `.state/dialog/{session_id}.json` | ✅ |
+| 操作日志 | `.state/log/{index}/operations.log` | ✅ |
+| 操作结构化记录 | `.state/log/{index}/operations.json` | ✅ |
+| 日志元数据与保存快照 | `.state/log/{index}/metadata.json`、`.state/log/{index}/saved_*.vsdx` | ✅ |
 | agno SqliteDb | `.state/agno_sessions.db`（由 `AGNO_SESSIONS_DB` 覆写） | ✅ |
 | 生成 vsdx | `outputs/{session}/*.vsdx` | ✅ |
 | 预览 PNG | `outputs/static/visio/*.png` | ✅ |
 | 模板 / stencil 索引 | `assets/indexes/*.json` | 跟踪 |
+
+`VisioTools` 默认恢复重构前行为：所有工具调用会写入 `.state/log`，并把当前工作文件、页码与关键操作写入 `.state/dialog`；Agno 的对话历史仍由 `AGNO_SESSIONS_DB` 保存。这是默认运行能力，不作为额外 MCP 工具暴露。
 
 ## 🧰 离线维护
 
@@ -195,6 +201,7 @@ pytest tests/
 | `AGNO_SESSIONS_DB` | `.state/agno_sessions.db` | agno SqliteDb 路径 |
 | `VISIO_TEMPLATE_DIR` | `assets/templates` | 只读模板根 |
 | `VISIO_DIALOG_DIR` | `.state/dialog` | 对话上下文落盘目录 |
+| `VISIO_LOG_DIR` | `.state/log` | 操作日志与保存快照目录 |
 
 ## 📚 依赖
 
