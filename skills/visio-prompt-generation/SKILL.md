@@ -81,10 +81,10 @@ upsert_connector(from_node_key="decision_pass", to_node_key="reject",        lab
 upsert_connector(from_node_key="decision_pass", to_node_key="process",       label="通过",   from_port="Bottom", to_port="Top")
 # ...
 
-# Step 7: 保存 → 重载 → 渲染
+# Step 7: 保存 → 重载 → 渲染（render_page 同时返回 fit_window 图片 + 交互预览链接）
 save_document("outputs/<output>.vsdx")
 open_document("outputs/<output>.vsdx")   # 硬约束，不得省略
-render_page(page=0, scale=2.0, mode="data")
+render_page(page=0, scale=2.0, mode="url")  # 默认 url 模式，PNG 与 /api/visio/preview 一致
 ```
 
 ### 退化骨架：Workflow B（从零搭建，模板结构完全不符时）
@@ -109,10 +109,10 @@ upsert_connector(from_node_key="n1", to_node_key="n2",
 edit_shape("n1", patch={"style": {"fill_color": "#CCE5FF"}})
 edit_shape("n2", patch={"size":  {"width": 2.0, "height": 1.0}})
 
-# Step 5: 保存 → 重载 → 渲染
+# Step 5: 保存 → 重载 → 渲染（render_page 同时返回 fit_window 图片 + 交互预览链接）
 save_document("outputs/<output>.vsdx")
 open_document("outputs/<output>.vsdx")   # 硬约束，不得省略
-render_page(page=0, scale=2.0, mode="data")
+render_page(page=0, scale=2.0, mode="url")  # 默认 url 模式，PNG 与 /api/visio/preview 一致
 ```
 
 要求：
@@ -129,16 +129,18 @@ render_page(page=0, scale=2.0, mode="data")
 
 ## 步骤 6：交付
 - 完整的可执行 Prompt 放在独立 Markdown 代码块中；
-- 同时提供模板的预览链接（Markdown 格式）；
-- 除非用户明确要求，不主动 `render_page` 到聊天 UI。
+- **必须**同时提供模板的预览链接（Markdown 格式）——这是用户验证布局的唯一可靠入口，遗漏视为交付失败；
+- 若实际执行了 `render_page`（用户明确要求或工作流末尾），把工具返回的 **inline 图片 + 交互预览链接** 整段原样转交，不得只贴图片或只贴链接。
+- 除非用户明确要求，不主动 `render_page` 到聊天 UI——但模板预览链接始终要给。
 
-## 预览链接格式（仅 .vsdx）
+## 预览链接格式（仅 .vsdx，强制）
   `[文件名](http://localhost:7777/api/visio/preview?path=<完整路径>)`
 
 - 路径必须包含完整文件名和 `.vsdx` 扩展名，保留空格；
 - 模板路径前缀 `assets/templates/library/...`，输出路径前缀 `outputs/...`；
 - `.vssx` 严禁提供预览链接；
-- 绝不使用 "预览链接: URL" 的裸 URL 写法——含空格的文件名会被 Markdown 截断。
+- 绝不使用 "预览链接: URL" 的裸 URL 写法——含空格的文件名会被 Markdown 截断；
+- 该 URL 打开的页面默认 `fit_window` 视图（CSS 自动缩放至窗口可视区域），保证图像完整可见，绝不会被裁切。
 
 ## 质量清单
 - 只用 15 个公开工具；
@@ -146,4 +148,5 @@ render_page(page=0, scale=2.0, mode="data")
 - 每个需要连接的形状都有稳定 node_key（来自 edit_shape 或 upsert_shape）；
 - 连接器都有显式 from/to/label；
 - 形状 → 连接 → 样式 → 保存 → 重载 → 渲染，次序不颠倒；
-- 输出的 Prompt 里的路径与真实模板路径完全一致。
+- 输出的 Prompt 里的路径与真实模板路径完全一致；
+- **预览链接已附加**——交付物末尾必须有 `[文件名](http://localhost:7777/api/visio/preview?path=...)`，且其 path 与 `save_document` 写入的路径完全一致（含子目录与扩展名）。

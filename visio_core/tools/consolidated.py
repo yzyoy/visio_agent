@@ -189,7 +189,35 @@ def _build_search_stencils(visio_tools: "VisioTools") -> Callable:
 
 
 def _build_render_page(visio_tools: "VisioTools") -> Callable:
-    """Expose page rendering as a single canonical tool."""
+    """Expose page rendering as a single canonical tool.
+
+    Pipeline-consistency note
+    -------------------------
+    Every preview surface in the system (the ``/api/visio/preview`` HTML
+    viewer, the ``/api/visio/render`` raw PNG endpoint, and this tool) now
+    funnels through :func:`render_and_cache_preview`. The cached PNG is
+    rendered at a fixed high-quality scale (``VISIO_PREVIEW_RENDER_SCALE``,
+    default 2.0 ≈ 192 DPI) so the *fit-window* CSS in the HTML viewer can
+    downscale the natural image without ever cropping it. Returning the
+    same PNG bytes (or the same canonical ``/api/visio/render?path=...``
+    URL) from this tool guarantees that what the chat UI shows matches the
+    interactive viewer pixel-for-pixel — no half-rendered titles, no
+    blank-page fallbacks, no silent backend drift.
+    """
+
+    import os
+    from urllib.parse import quote
+
+    base_url = (
+        os.getenv("VISIO_PREVIEW_BASE_URL")
+        or "http://localhost:7777"
+    ).rstrip("/")
+
+    def _build_links(target: str, page: int) -> tuple[str, str]:
+        encoded = quote(target, safe="/:")
+        png_url = f"{base_url}/api/visio/render?path={encoded}&page={page}"
+        viewer_url = f"{base_url}/api/visio/preview?path={encoded}&page={page}"
+        return png_url, viewer_url
 
     def render_page(
         page: int = 0,
@@ -199,25 +227,42 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
     ) -> str:
         """Render the current (or given) document page to a preview image.
 
-        Returns a markdown image string (``![](<src>)``) suitable for inline
-        display in chat UIs. Internally tries multiple rendering backends
-        (Microsoft Visio COM, Aspose.Diagram, LibreOffice+Poppler) so that the
-        tool works on Windows even when LibreOffice cannot render the VSDX.
+        Returns a chat-ready response that contains **two** complete,
+        fit-window viewable surfaces:
+
+        1. An inline preview image (``![](<src>)``) so the user can see
+           the diagram immediately in the chat transcript. The PNG is the
+           identical, full-page, fit-window-ready image that the
+           interactive viewer would display — never a cropped or
+           half-rendered thumbnail.
+        2. A markdown link to the interactive preview page
+           (``[Open interactive preview](http://.../api/visio/preview?...)``).
+           The link **must** be forwarded verbatim to the user so they
+           can zoom, toggle fit/actual mode, and re-render on demand.
+
+        Internally this funnels through
+        :func:`visio_core.utils.visio_render.render_and_cache_preview`,
+        the same pipeline used by ``/api/visio/preview``. This guarantees
+        the chat preview is byte-identical to the viewer preview and
+        plays nicely with the cache invalidation logic
+        (``outputs/Preview_pngs``).
 
         Args:
             page: Zero-based page index.
-            scale: Render scale factor (1.0 ≈ 96 DPI; clamped to [0.5, 3.0]).
-            mode: ``"url"`` (default) saves the PNG under ``outputs/static/visio``
-                and returns a relative URL — recommended for any non-trivial
-                diagram. ``"data"`` returns an inline base64 data URI and
-                automatically falls back to URL mode if the payload would
-                exceed the chat-friendly size cap.
+            scale: Cache-miss render scale (1.0 ≈ 96 DPI; clamped to
+                [0.5, 3.0]). Ignored on cache hit — zoom and fit/actual
+                toggles are client-side concerns.
+            mode: ``"url"`` (default, recommended) returns a stable
+                ``/api/visio/render`` URL that browsers can cache.
+                ``"data"`` inlines the PNG as a base64 data URI for
+                offline / log replay; it auto-falls-back to URL mode when
+                the payload would exceed the chat-friendly size cap.
             filepath: Optional path override; defaults to the currently
                 loaded document.
         """
         from ..utils.visio_render import (
-            render_and_save_png,
-            render_vsdx_page_to_data_uri,
+            png_to_data_uri,
+            render_and_cache_preview,
         )
 
         target = filepath or visio_tools.current_file_path
@@ -225,26 +270,45 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
             return "✗ No document open. Call open_document first."
 
         try:
-            if mode == "data":
-                data_uri = render_vsdx_page_to_data_uri(
-                    target, page, scale=scale, allowed_extra_path=target
-                )
-                cap = getattr(visio_tools, "_max_inline_data_uri_chars", 120_000)
-                if data_uri and len(data_uri) > cap:
-                    result = render_and_save_png(
-                        target, page, scale=scale, allowed_extra_path=target
-                    )
-                    url = result.get("absolute_url") or result.get("url")
-                    return f"✓ Rendered (data URI too large; using URL)\n\n![]({url})"
-                return f"✓ Rendered\n\n![]({data_uri})"
+            s = float(scale)
+        except Exception:
+            s = 2.0
+        s = max(0.5, min(3.0, s))
 
-            result = render_and_save_png(
-                target, page, scale=scale, allowed_extra_path=target
+        try:
+            result = render_and_cache_preview(
+                target, page=page, scale=s, allowed_extra_path=target
             )
-            url = result.get("absolute_url") or result.get("url")
-            return f"✓ Rendered\n\n![]({url})"
         except Exception as exc:
             return f"✗ Render failed: {exc}"
+
+        png_url, viewer_url = _build_links(target, page)
+        viewer_link = f"[Open interactive preview (fit window)]({viewer_url})"
+
+        if mode == "data":
+            png_bytes = result.get("bytes") or b""
+            cap = getattr(visio_tools, "_max_inline_data_uri_chars", 120_000)
+            data_uri = png_to_data_uri(png_bytes) if png_bytes else ""
+            if data_uri and len(data_uri) <= cap:
+                return (
+                    "✓ Rendered (fit-window preview)\n\n"
+                    f"![Visio preview]({data_uri})\n\n"
+                    f"{viewer_link}"
+                )
+            # Data URI would blow the chat budget — fall back to the
+            # canonical URL form. The interactive link is still returned
+            # so the user retains full fit-window viewing.
+            return (
+                "✓ Rendered (data URI too large; using URL)\n\n"
+                f"![Visio preview]({png_url})\n\n"
+                f"{viewer_link}"
+            )
+
+        return (
+            "✓ Rendered (fit-window preview)\n\n"
+            f"![Visio preview]({png_url})\n\n"
+            f"{viewer_link}"
+        )
 
     return render_page
 

@@ -63,8 +63,32 @@ class PromptTools:
         the agno-style ``.response([msg]).content`` protocol. This is how
         the app / MCP layer wires the concrete LLM SDK in; the core
         library never imports agno.
+
+        We additionally apply *recommendation-friendly* sampling defaults
+        (temperature=0, top_p=1, fixed seed) directly on the model when it
+        exposes those attributes. ``SmartMatcher`` re-asserts these on every
+        call via :func:`_deterministic_sampling`, so this is mostly an
+        ergonomic hint — but it also means callers who reuse ``self.model``
+        outside SmartMatcher inherit deterministic defaults rather than the
+        provider's default sampling, which was the historical source of
+        ``recommend_template`` jitter.
         """
         self.model = model
+        # Best-effort: nudge the underlying chat client to greedy decoding
+        # so the rest of the recommendation pipeline (and any downstream
+        # tool that reuses the same model handle) is reproducible.
+        for attr, value in (
+            ("temperature", 0.0),
+            ("top_p", 1.0),
+            ("seed", 42),
+        ):
+            if hasattr(model, attr):
+                try:
+                    setattr(model, attr, value)
+                except Exception:
+                    # Read-only / pydantic frozen models — silently skip;
+                    # SmartMatcher's per-call wrapper still enforces these.
+                    pass
 
     def _preview_markdown(self, template_path: str) -> str:
         filename = os.path.basename(template_path)
@@ -334,7 +358,29 @@ class PromptTools:
         consolidated 15-tool contract. It prefers the SmartMatcher semantic
         path and degrades into a structured keyword fallback when the model is
         unavailable or the semantic path fails.
+
+        Determinism notes:
+          * ``SmartMatcher`` is invoked under deterministic sampling
+            (temperature=0, fixed seed) and applies stable tiebreakers, so
+            repeat calls with the same ``requirement`` produce identical
+            output.
+          * ``SmartMatcher`` also memoizes the resulting payload in a small
+            in-memory LRU keyed on the *normalized* requirement, which makes
+            short-term retries free and byte-stable. Set
+            ``VISIO_RECOMMENDATION_CACHE_DISABLED=1`` to bypass the cache
+            during reproducibility audits.
         """
+        # Normalise trivially before forwarding so a stray space at the end
+        # of the user prompt does not invalidate the cache. SmartMatcher
+        # applies its own stricter normalisation when computing the key, but
+        # this also keeps the value of ``requirement`` in the response stable.
+        requirement = (requirement or "").strip()
+        try:
+            top_k = int(top_k)
+        except (TypeError, ValueError):
+            top_k = 5
+        top_k = max(1, min(top_k, 20))
+
         if self.model:
             try:
                 result = self.smart_matcher.smart_match(

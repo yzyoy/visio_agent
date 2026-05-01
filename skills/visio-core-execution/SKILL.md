@@ -14,8 +14,11 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 - 通用对话：其他所有对话和任务
 
 **全局显示策略（最高优先级）**：
-- 默认仅提供 vsdx 文件的预览链接，不在聊天UI渲染图片
-- 仅当用户明确要求在聊天UI显示时，才调用预览工具并输出图片
+- 默认仅提供 vsdx 文件的预览链接，不在聊天UI渲染图片。
+- 仅当用户明确要求在聊天UI显示时，才调用 `render_page` 并输出图片。
+- **预览链接是强制项，绝对不能忘记。** 任何涉及 `.vsdx` 的回复都必须以 markdown 预览链接结尾：
+  `[文件名](http://localhost:7777/api/visio/preview?path=<完整路径>)`。
+  该链接打开的页面默认走 `fit_window` 渲染，能保证用户看到完整图像；裸图片或 `outputs/static/visio/...` 直链不能替代它。
 
 ## 2. Visio 图表操作基础（面向 15 工具公开表面）
 
@@ -32,7 +35,7 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 6. `open_document(path)`
 7. `create_from_template(template_name, output_path)`
 8. `save_document(path=None)` (之后必须 open_document 再读连接器)
-9. `render_page(page=0, scale=2.0, mode="data"|"url")`
+9. `render_page(page=0, scale=2.0, mode="data"|"url")` — 单次调用即返回 **inline 图片 + 交互预览链接**。两者必须原样转发给用户，预览链接不得删除。
 10. `upsert_shape(node_key, text, type, x, y, width?, height?, ...)`
 11. `upsert_connector(from_node_key, to_node_key, label?, router?, from_port?, to_port?)`
 12. `update_text(selector, new_text)`
@@ -79,6 +82,12 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 
 **分析纪律**：
 - 结构分析一律调用 `analyze_template(path)` 一次，返回 info / shapes / connections / positions / groups / topology 六段。
+
+**渲染 / 预览纪律（强制）**：
+- 预览图片一律走 `render_page`，禁止自己拼接 `outputs/static/visio/...` 直链。
+- `render_page` 内部走 `render_and_cache_preview`，与 `/api/visio/preview` 页面同源，PNG 字节完全一致，能保证 fit_window 缩放后图像完整不裁切。
+- `render_page` 的返回值已经包含两段内容（inline 图片 + `[Open interactive preview](...)` 链接）；必须**整段原样**贴回给用户，绝不删掉链接、绝不只贴图片。
+- 默认 `mode="url"`；仅在用户明确要求"离线 / 嵌入式 / 不联网"场景下才用 `mode="data"`，且小图（<120 KB）才内联，否则同样回退到 URL。
 
 ## 4. 中文指令理解
 
@@ -146,4 +155,4 @@ E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）
      — 所有端点必须已在步骤 6 或 8 中绑定了 node_key
   10) `save_document("outputs/<name>.vsdx")`
   11) `open_document("outputs/<name>.vsdx")` — 强制重载（MCP 约束）
-  12) `render_page(page=0, scale=2.0, mode="data")`
+  12) `render_page(page=0, scale=2.0, mode="url")` — 把返回的 **inline 图片 + 交互预览链接** 整段贴回给用户；链接是默认 fit_window 视图的唯一可靠入口，绝不能省略。

@@ -112275,5 +112275,1031 @@
     ],
     "complexity": "complex",
     "scan_date": "2025-11-05T17:07:03.995095"
+  },
+  "IT Vendors\\Infoblox v2019.vssx": {
+    "name": "Infoblox v2019",
+    "category": "general",
+    "keywords": [],
+    "use_cases": [],
+    "masters": {
+      "97": {
+        "name": "Trinzic 1400 Series",
+        "nameU": "Trinzic 1400 Series",
+        "master_type": "2",
+        "base_id": "{CDAC2561-D643-4BD9-B86A-737FF3297EEB}",
+        "unique_id": "{002D5866-0061-0000-8E40-00608CF305B2}"
+      },
+      "5": {
+        "name": "Trinzic 1400 Series - Front",
+        "nameU": "Trinzic 1400 Series - Front",
+        "master_type": "2",
+        "base_id": "{24EC0B0D-51AB-4807-8440-D529E570D132}",
+        "unique_id": "{002D5856-0005-0000-8E40-00608CF305B2}"
+      },
+      "98": {
+        "name": "Trinzic 1400 Series HA",
+        "nameU": "Trinzic 1400 Series HA",
+        "master_type": "2",
+        "base_id": "{2EBE3BC6-3DE6-4A30-AB62-E2D83917CE46}",
+        "unique_id": "{002D5866-0062-0000-8E40-00608CF305B2}"
+      },
+      "9": {
+        "name": "Trinzic 1400 Series HA - Front",
+        "nameU": "Trinzic 1400 Series HA - Front",
+        "master_type": "2",
+        "base_id": "{438B31CE-4668-4099-9281-DBBAF7BCE79B}",
+        "unique_id": "{002D5856-0009-0000-8E40-00608CF305B2}"
+      },
+      "99": {
+        "name": "Trinzic 800 Series",
+        "nameU": "Trinzic 800 Series",
+        "master_type": "2",
+        "base_id": "{9C46BB50-1FC6-4EAC-8658-D85519CA8BD6}",
+        "unique_id": "{002D5866-0063-0000-8E40-00608CF305B2}"
+      },
+      "0": {
+        "name": "Trinzic 800 Series - Front",
+        "nameU": "Trinzic 800 Series - Front",
+        "master_type": "2",
+        "base_id": "{DFCACF1A-87EA-46E6-B6AE-7A3BDC86658D}",
+        "unique_id": "{002D5856-0000-0000-8E40-00608CF305B2}"
+      },
+      "100": {
+        "name": "Trinzic 800 Series HA",
+        "nameU": "Trinzic 800 Series HA",
+        "master_type": "2",
+        "base_id": "{9E36AEA6-1381-4F38-B264-4C7A4DB42A31}",
+        "unique_id": "{002D5866-0064-0000-8E40-00608CF305B2}"
+      },
+      "4": {
+        "name": "Trinzic 800 Series HA - Front",
+        "nameU": "Trinzic 800 Series HA - Front",
+        "master_type": "2",
+        "base_id": "{9EBBE04E-DBE2-4EBE-BF63-759D32D64322}",
+        "unique_id": "{002D5856-0004-0000-8E40-00608CF305B2}"
+      },
+      "101": {
+        "name": "Trinzic 2200 Series",
+        "nameU": "Trinzic 2200 Series",
+        "master_type": "2",
+        "base_id": "{2541672A-BD2A-4E08-960B-DF4C6EEA8977}",
+        "unique_id": "{002D5866-0065-0000-8E40-00608CF305B2}"
+      },
+      "12": {
+        "name": "Trinzic 2200 Series - Front",
+        "nameU": "Trinzic 2200 Series - Front",
+        "master_type": "2",
+        "base_id": "{5B44F995-58EA-4536-97D6-F7F4C87E4E56}",
+        "unique_id": "{002D5856-000C-0000-8E40-00608CF305B2}"
+      },
+      "102": {
+        "name": "Trinzic 2200 Series HA",
+        "nameU": "Trinzic 2200 Series HA",
+        "master_type": "2",
+        "base_id": "{343BB2B9-321B-4190-BC71-21FC3CC0EDB6}",
+        "unique_id": "{002D5866-0066-0000-8E40-00608CF305B2}"
+      },
+      "17": {
+        "name": "Trinzic 2200 Series HA - Front",
+        "nameU": "Trinzic 2200 Series HA - Front",
+        "master_type": "2",
+        "base_id": "{746653E1-92EC-4A5E-8AAD-3C2C6ED00E24}",
+        "unique_id": "{002D5856-0011-0000-8E40-00608CF305B2}"
+      },
+      "103": {
+        "name": "Trinzic 4000 Series",
+        "nameU": "Trinzic 4000 Series",
+        "master_type": "2",
+        "base_id": "{A20A2C91-C606-4B32-8F87-D5EA8D569BA1}",
+        "unique_id": "{002D5866-0067-0000-8E40-00608CF305B2}"
+      },
+      "15": {
+        "name": "Trinzic 4000 Series - Front",
+        "nameU": "Trinzic 4000 Series - Front",
+        "master_type": "2",
+        "base_id": "{1ED7DD16-9210-4501-9CEF-A1FD00A95BA4}",
+        "unique_id": "{002D5856-000F-0000-8E40-00608CF305B2}"
+      },
+      "104": {
+        "name": "Trinzic 4000 Series HA",
+        "nameU": "Trinzic 4000 Series HA",
+        "master_type": "2",
+        "base_id": "{CF50A376-F2E0-4641-82F7-25CC9F2319F2}",
+        "unique_id": "{002D5866-0068-0000-8E40-00608CF305B2}"
+      },
+      "16": {
+        "name": "Trinzic 4000 Series HA - Front",
+        "nameU": "Trinzic 4000 Series HA - Front",
+        "master_type": "2",
+        "base_id": "{348D9CAC-FD07-4228-9E6D-2480F558AC23}",
+        "unique_id": "{002D5856-0010-0000-8E40-00608CF305B2}"
+      },
+      "157": {
+        "name": "Reporting Member 2016-03",
+        "nameU": "Reporting Member 2",
+        "master_type": "2",
+        "base_id": "{68F78E0C-1413-43C0-B58D-F8BCB6F7CBCC}",
+        "unique_id": "{002D5866-009D-0000-8E40-00608CF305B2}"
+      },
+      "181": {
+        "name": "ActiveTrust Cloud",
+        "nameU": "ActiveTrust Cloud",
+        "master_type": "2",
+        "base_id": "{DAF6DF6A-5BE1-4CC0-B157-8112115FD3A3}",
+        "unique_id": "{002D5866-00B5-0000-8E40-00608CF305B2}"
+      },
+      "170": {
+        "name": "Out of Scope box",
+        "nameU": "Out of Scope box",
+        "master_type": "2",
+        "base_id": "{B0662721-80EA-4547-A26D-FEFF04CE1A96}",
+        "unique_id": "{002D5866-00AA-0000-8E40-00608CF305B2}"
+      },
+      "44": {
+        "name": "Firewall",
+        "nameU": "Firewall",
+        "master_type": "2",
+        "base_id": "{EE29A023-A1D0-4F8D-AEBE-59098C67E988}",
+        "unique_id": "{002D5866-002C-0000-8E40-00608CF305B2}"
+      },
+      "51": {
+        "name": "Crown - Gold",
+        "nameU": "Crown - Gold",
+        "master_type": "2",
+        "base_id": "{EB4F77E0-A2EB-4F3A-9681-8F1210138E9B}",
+        "unique_id": "{002D5866-0033-0000-8E40-00608CF305B2}"
+      },
+      "52": {
+        "name": "Crown - Silver",
+        "nameU": "Crown - Silver",
+        "master_type": "2",
+        "base_id": "{C70C49C0-3342-40D5-A2E6-CC1EEB91A2FB}",
+        "unique_id": "{002D5866-0034-0000-8E40-00608CF305B2}"
+      },
+      "159": {
+        "name": "Cloud Member",
+        "nameU": "Cloud Member",
+        "master_type": "2",
+        "base_id": "{3CFE8B4B-04A7-454E-BEBB-681C0E0AD96F}",
+        "unique_id": "{002D5866-009F-0000-8E40-00608CF305B2}"
+      },
+      "186": {
+        "name": "AWS cloud",
+        "nameU": "AWS cloud",
+        "master_type": "2",
+        "base_id": "{3D7AC1F3-D24C-417A-AA98-F0C280299255}",
+        "unique_id": "{002D5866-00BA-0000-8E40-00608CF305B2}"
+      },
+      "190": {
+        "name": "Azure Cloud",
+        "nameU": "Azure Cloud",
+        "master_type": "2",
+        "base_id": "{AE2A3AA6-85F4-41A9-8C7B-10736E5FC57D}",
+        "unique_id": "{002D5866-00BE-0000-8E40-00608CF305B2}"
+      },
+      "158": {
+        "name": "ADP Member",
+        "nameU": "ADP Member",
+        "master_type": "2",
+        "base_id": "{0A095826-55B3-4140-B358-07F87A7B7D88}",
+        "unique_id": "{002D5866-009E-0000-8E40-00608CF305B2}"
+      },
+      "198": {
+        "name": "ADP Member HA",
+        "nameU": "ADP Member HA",
+        "master_type": "2",
+        "base_id": "{3BF7355D-4876-4E8D-BB89-4FC972B662E1}",
+        "unique_id": "{002D5866-00C6-0000-8E40-00608CF305B2}"
+      },
+      "105": {
+        "name": "vNIOS on VMware",
+        "nameU": "vNIOS on VMware",
+        "master_type": "2",
+        "base_id": "{F0C1EDD7-61E2-4BC7-867C-78B773D9DD5B}",
+        "unique_id": "{002D5866-0069-0000-8E40-00608CF305B2}"
+      },
+      "106": {
+        "name": "vNIOS on VMware HA",
+        "nameU": "vNIOS on VMware HA",
+        "master_type": "2",
+        "base_id": "{22F70E7F-DC08-4A76-BF34-5A4A1F8BAA1D}",
+        "unique_id": "{002D5866-006A-0000-8E40-00608CF305B2}"
+      },
+      "107": {
+        "name": "Trinzic 100 Series",
+        "nameU": "Trinzic 100 Series",
+        "master_type": "2",
+        "base_id": "{FDACC8A3-ABF1-4731-9EF0-57E28FDA4609}",
+        "unique_id": "{002D5866-006B-0000-8E40-00608CF305B2}"
+      },
+      "108": {
+        "name": "vNIOS on Cisco",
+        "nameU": "vNIOS on Cisco",
+        "master_type": "2",
+        "base_id": "{29433A06-27D2-41E6-8B5D-5249415FC732}",
+        "unique_id": "{002D5866-006C-0000-8E40-00608CF305B2}"
+      },
+      "109": {
+        "name": "vNIOS on Riverbed",
+        "nameU": "vNIOS on Riverbed",
+        "master_type": "2",
+        "base_id": "{63560128-948B-450B-9197-AFEBA293F59D}",
+        "unique_id": "{002D5866-006D-0000-8E40-00608CF305B2}"
+      },
+      "71": {
+        "name": "IPAM for Microsoft",
+        "nameU": "IPAM for Microsoft",
+        "master_type": "2",
+        "base_id": "{1A123D34-30A1-4D8A-BDFB-7B2197C3E4D3}",
+        "unique_id": "{002D5866-0047-0000-8E40-00608CF305B2}"
+      },
+      "7": {
+        "name": "DNS Firewall Group",
+        "nameU": "DNS Firewall Group",
+        "master_type": "2",
+        "base_id": "{2D877DE1-6664-4C98-B24C-DA311822505E}",
+        "unique_id": "{002D5856-0007-0000-8E40-00608CF305B2}"
+      },
+      "135": {
+        "name": "NetMRI",
+        "nameU": "NetMRI",
+        "master_type": "2",
+        "base_id": "{C4429EC6-7EE1-46C5-9534-C9E9079A43DA}",
+        "unique_id": "{002D5866-0087-0000-8E40-00608CF305B2}"
+      },
+      "199": {
+        "name": "Unit Notes",
+        "nameU": "Unit Notes",
+        "master_type": "2",
+        "base_id": "{B6278038-BD1C-49C6-B790-C75019DE5E94}",
+        "unique_id": "{002D5866-00C7-0000-8E40-00608CF305B2}"
+      },
+      "40": {
+        "name": "Best Practices Implemented",
+        "nameU": "Best Practices Implemented",
+        "master_type": "2",
+        "base_id": "{E89039CA-27AD-4423-B862-ED112B08FC88}",
+        "unique_id": "{002D5866-0028-0000-8E40-00608CF305B2}"
+      },
+      "146": {
+        "name": "Legend",
+        "nameU": "Legend",
+        "master_type": "2",
+        "base_id": "{CF0D1316-E2DC-4FC2-BF07-577BBCF0F3DF}",
+        "unique_id": "{002D5866-0092-0000-8E40-00608CF305B2}"
+      },
+      "147": {
+        "name": "Model Legend",
+        "nameU": "Appliance Count - Blue Box",
+        "master_type": "2",
+        "base_id": "{77B33C10-B986-4ADA-B7B2-683D0498C18A}",
+        "unique_id": "{002D5866-0093-0000-8E40-00608CF305B2}"
+      },
+      "54": {
+        "name": "Internet DNS",
+        "nameU": "2 Generic Systems.19",
+        "master_type": "2",
+        "base_id": "{CCE9CC64-76C5-4D3F-92D2-9D465BF2E430}",
+        "unique_id": "{002D5866-0036-0000-8E40-00608CF305B2}"
+      },
+      "48": {
+        "name": "Model Legend - OLD",
+        "nameU": "Model Legend - OLD",
+        "master_type": "2",
+        "base_id": "{81480035-E9E1-4403-8332-5E6EDBB476E5}",
+        "unique_id": "{002D5866-0030-0000-8E40-00608CF305B2}"
+      },
+      "10": {
+        "name": "Firewall Vertical",
+        "nameU": "Firewall Vertical",
+        "master_type": "2",
+        "base_id": "{E83535A5-3DE4-41EB-92C2-22A358B483F6}",
+        "unique_id": "{002D5856-000A-0000-8E40-00608CF305B2}"
+      },
+      "45": {
+        "name": "Firewall Horizontal",
+        "nameU": "Firewall w/ Line",
+        "master_type": "2",
+        "base_id": "{6599E213-15C1-45F4-BA91-C98ED57BC1BE}",
+        "unique_id": "{002D5866-002D-0000-8E40-00608CF305B2}"
+      },
+      "35": {
+        "name": "DNS Query Line",
+        "nameU": "DNS Query Line",
+        "master_type": "1",
+        "base_id": "{DFDD52EC-B281-496B-82B6-659784912973}",
+        "unique_id": "{002D5866-0023-0000-8E40-00608CF305B2}"
+      },
+      "41": {
+        "name": "DNS Response Line",
+        "nameU": "DNS Response Line",
+        "master_type": "1",
+        "base_id": "{02ABD22D-E368-4231-8916-F69E9321EAB1}",
+        "unique_id": "{002D5866-0029-0000-8E40-00608CF305B2}"
+      },
+      "29": {
+        "name": "DHCP Failover Connector",
+        "nameU": "DHCP Failover Connector",
+        "master_type": "541",
+        "base_id": "{A86CC77E-2E00-4179-8C0D-5CF9E0F05C56}",
+        "unique_id": "{002D5866-001D-0000-8E40-00608CF305B2}"
+      },
+      "30": {
+        "name": "Microsoft DNS Server",
+        "nameU": "Microsoft DNS Server",
+        "master_type": "2",
+        "base_id": "{F11969BE-D868-402B-804C-3DB322AAED7F}",
+        "unique_id": "{002D5866-001E-0000-8E40-00608CF305B2}"
+      },
+      "11": {
+        "name": "Microsoft DHCP Server",
+        "nameU": "Microsoft DHCP Server",
+        "master_type": "2",
+        "base_id": "{A8E9EEC6-2152-47F8-80B5-F349BBC31A94}",
+        "unique_id": "{002D5856-000B-0000-8E40-00608CF305B2}"
+      },
+      "23": {
+        "name": "Switch",
+        "nameU": "Switch",
+        "master_type": "2",
+        "base_id": "{F75BACB9-213A-4664-9E6D-7DEA2AE62DE7}",
+        "unique_id": "{002D5866-0017-0000-8E40-00608CF305B2}"
+      },
+      "14": {
+        "name": "Router",
+        "nameU": "Router",
+        "master_type": "2",
+        "base_id": "{240695E4-CF47-4C21-AA70-22AAB3FA7355}",
+        "unique_id": "{002D5856-000E-0000-8E40-00608CF305B2}"
+      },
+      "13": {
+        "name": "Cloud",
+        "nameU": "Cloud",
+        "master_type": "2",
+        "base_id": "{BE961649-2370-4572-ADBA-1D29FA425A94}",
+        "unique_id": "{002D5856-000D-0000-8E40-00608CF305B2}"
+      },
+      "39": {
+        "name": "Servers 2",
+        "nameU": "Servers 2",
+        "master_type": "2",
+        "base_id": "{3A7A8143-A0F5-412B-8EE4-2084AF270F34}",
+        "unique_id": "{002D5866-0027-0000-8E40-00608CF305B2}"
+      },
+      "70": {
+        "name": "Dynamic connector",
+        "nameU": "Dynamic connector",
+        "master_type": "541",
+        "base_id": "{F7290A45-E3AD-11D2-AE4F-006008C9F5A9}",
+        "unique_id": "{002D5866-0046-0000-8E40-00608CF305B2}"
+      },
+      "6": {
+        "name": "User + Computer",
+        "nameU": "User + Computer",
+        "master_type": "2",
+        "base_id": "{B77E9CB0-D95B-4CF6-8018-CB16DA0E6BCA}",
+        "unique_id": "{002D5856-0006-0000-8E40-00608CF305B2}"
+      },
+      "25": {
+        "name": "Env - DNS",
+        "nameU": "Env - DNS",
+        "master_type": "2",
+        "base_id": "{D6C66F84-4F1E-4998-AF24-4778E3EF0350}",
+        "unique_id": "{002D5866-0019-0000-8E40-00608CF305B2}"
+      },
+      "26": {
+        "name": "Env - DHCP",
+        "nameU": "Env - DHCP",
+        "master_type": "2",
+        "base_id": "{678DBFF4-417B-43CF-8BFE-3945ACB08110}",
+        "unique_id": "{002D5866-001A-0000-8E40-00608CF305B2}"
+      },
+      "33": {
+        "name": "Env - MS AD",
+        "nameU": "Env - MS AD",
+        "master_type": "2",
+        "base_id": "{C2EB9BB4-0CC8-44A4-93CB-ED43AD84FF57}",
+        "unique_id": "{002D5866-0021-0000-8E40-00608CF305B2}"
+      },
+      "72": {
+        "name": "Documents - Reporting",
+        "nameU": "Documents - Reporting",
+        "master_type": "2",
+        "base_id": "{726A8F2D-FC06-469D-8133-9CBCB1ED3F98}",
+        "unique_id": "{002D5866-0048-0000-8E40-00608CF305B2}"
+      },
+      "73": {
+        "name": "Policy - NetMRI",
+        "nameU": "Policy - NetMRI",
+        "master_type": "2",
+        "base_id": "{F317C77C-AAA2-41FB-8895-85D3698E96A0}",
+        "unique_id": "{002D5866-0049-0000-8E40-00608CF305B2}"
+      },
+      "142": {
+        "name": "FireEye",
+        "nameU": "FireEye",
+        "master_type": "2",
+        "base_id": "{650727D6-ED99-4BF7-A8B2-E23830EB7C81}",
+        "unique_id": "{002D5866-008E-0000-8E40-00608CF305B2}"
+      },
+      "143": {
+        "name": "FireEye Front",
+        "nameU": "FireEye Front",
+        "master_type": "2",
+        "base_id": "{5F142A54-D79F-4A20-9BB2-B619855D3D8F}",
+        "unique_id": "{002D5866-008F-0000-8E40-00608CF305B2}"
+      },
+      "18": {
+        "name": "Triangle callout.18",
+        "nameU": "Triangle callout.18",
+        "master_type": "2",
+        "base_id": "{38FC8538-6135-4138-9258-DF9E5EE14261}",
+        "unique_id": "{002D5856-0012-0000-8E40-00608CF305B2}"
+      },
+      "154": {
+        "name": "Classic",
+        "nameU": "Classic",
+        "master_type": "34",
+        "base_id": "{01AA1507-7325-4FF1-A128-67A06BF2A552}",
+        "unique_id": "{002D5866-009A-0000-8E40-00608CF305B2}"
+      },
+      "137": {
+        "name": "Reporting Member",
+        "nameU": "Reporting Member",
+        "master_type": "2",
+        "base_id": "{615BAF69-FB66-487E-9568-D4DB937721FB}",
+        "unique_id": "{002D5866-0089-0000-8E40-00608CF305B2}"
+      },
+      "163": {
+        "name": "DNS Firewall Shield",
+        "nameU": "DNS Firewall Shield",
+        "master_type": "2",
+        "base_id": "{A3FD886A-6D47-4120-B9F5-E772DBC0D5AC}",
+        "unique_id": "{002D5866-00A3-0000-8E40-00608CF305B2}"
+      },
+      "166": {
+        "name": "Microsoft Server 3D",
+        "nameU": "Microsoft Server 3D",
+        "master_type": "2",
+        "base_id": "{35B29491-3ABF-4292-8AC5-A4D6F0E02CA9}",
+        "unique_id": "{002D5866-00A6-0000-8E40-00608CF305B2}"
+      },
+      "167": {
+        "name": "Generic Server 3D",
+        "nameU": "Generic Server 3D",
+        "master_type": "2",
+        "base_id": "{A71E2796-2B5A-41A8-857F-507681D004D6}",
+        "unique_id": "{002D5866-00A7-0000-8E40-00608CF305B2}"
+      },
+      "175": {
+        "name": "laptop",
+        "nameU": "laptop",
+        "master_type": "2",
+        "base_id": "{C4EA5BC2-FCA3-47D4-9CE3-3858549576F9}",
+        "unique_id": "{002D5866-00AF-0000-8E40-00608CF305B2}"
+      },
+      "176": {
+        "name": "user",
+        "nameU": "user",
+        "master_type": "2",
+        "base_id": "{C4EA5BC2-FCA3-47D4-9CE3-3858549576F9}",
+        "unique_id": "{002D5866-00B0-0000-8E40-00608CF305B2}"
+      },
+      "194": {
+        "name": "Modifier - Reporting",
+        "nameU": "Modifier - Reporting",
+        "master_type": "2",
+        "base_id": "{7451C6EC-7ACE-4037-B215-AAEE233FB94C}",
+        "unique_id": "{002D5866-00C2-0000-8E40-00608CF305B2}"
+      },
+      "195": {
+        "name": "Modifier - NI",
+        "nameU": "Modifier - NI",
+        "master_type": "2",
+        "base_id": "{DA308EF2-720B-4ECD-8122-3E4F15DBC6AB}",
+        "unique_id": "{002D5866-00C3-0000-8E40-00608CF305B2}"
+      },
+      "55": {
+        "name": "Text callout",
+        "nameU": "Text callout",
+        "master_type": "34",
+        "base_id": "{A26D0435-67B7-4D5E-913D-61CFDB989140}",
+        "unique_id": "{0AC1F657-001A-0000-8E40-00608CF305B2}"
+      },
+      "61": {
+        "name": "Bubble callout",
+        "nameU": "Bubble callout",
+        "master_type": "34",
+        "base_id": "{6A175122-55D5-40FC-9724-A5E94889B051}",
+        "unique_id": "{0AC1F667-001B-0000-8E40-00608CF305B2}"
+      },
+      "60": {
+        "name": "Data Graphic.60",
+        "nameU": "Data Graphic.60",
+        "master_type": "2",
+        "base_id": "{03621417-C208-4019-A30D-8ED032BA7803}",
+        "unique_id": "{3C1FABA5-003C-0000-8E40-00608CF305B2}"
+      },
+      "62": {
+        "name": "Circle callout",
+        "nameU": "Circle callout",
+        "master_type": "34",
+        "base_id": "{6A175122-55D5-40FC-9724-A5E94889B051}",
+        "unique_id": "{0AC1F667-001C-0000-8E40-00608CF305B2}"
+      },
+      "27": {
+        "name": "Triangle callout",
+        "nameU": "Triangle callout",
+        "master_type": "34",
+        "base_id": "{6A175122-55D5-40FC-9724-A5E94889B051}",
+        "unique_id": "{0AC1F677-001D-0000-8E40-00608CF305B2}"
+      },
+      "28": {
+        "name": "Heading 3",
+        "nameU": "Heading 3",
+        "master_type": "34",
+        "base_id": "{A26D0435-67B7-4D5E-913D-61CFDB989140}",
+        "unique_id": "{0AC1F686-0021-0000-8E40-00608CF305B2}"
+      },
+      "21": {
+        "name": "Report shape US units",
+        "nameU": "Report shape US units",
+        "master_type": "2",
+        "base_id": "{7A2E14D4-A68D-4DC4-8689-F96AED961C4D}",
+        "unique_id": "{002D5866-0015-0000-8E40-00608CF305B2}"
+      },
+      "24": {
+        "name": "Data Graphic.24",
+        "nameU": "Data Graphic.24",
+        "master_type": "2",
+        "base_id": "{03621417-C208-4019-A30D-8ED032BA7803}",
+        "unique_id": "{3C1EEECC-0018-0000-8E40-00608CF305B2}"
+      },
+      "38": {
+        "name": "Heading 1",
+        "nameU": "Heading 1",
+        "master_type": "34",
+        "base_id": "{A26D0435-67B7-4D5E-913D-61CFDB989140}",
+        "unique_id": "{0AC1F677-001F-0000-8E40-00608CF305B2}"
+      },
+      "32": {
+        "name": "Data Graphic.32",
+        "nameU": "Data Graphic.32",
+        "master_type": "2",
+        "base_id": "{03621417-C208-4019-A30D-8ED032BA7803}",
+        "unique_id": "{3C1F63CD-0020-0000-8E40-00608CF305B2}"
+      },
+      "53": {
+        "name": "Trend arrows 1",
+        "nameU": "Trend arrows 1",
+        "master_type": "34",
+        "base_id": "{3581627F-0B23-402A-9E0A-CFFFBA76DA09}",
+        "unique_id": "{0AC1F54E-0002-0000-8E40-00608CF305B2}"
+      },
+      "58": {
+        "name": "Flags",
+        "nameU": "Flags",
+        "master_type": "34",
+        "base_id": "{FE4C7772-74D6-431A-8A73-1A9C6502EE65}",
+        "unique_id": "{0AC1F55E-0005-0000-8E40-00608CF305B2}"
+      },
+      "80": {
+        "name": "Border rectangle",
+        "nameU": "Border rectangle",
+        "master_type": "2",
+        "base_id": "{370AC080-15B6-4945-B8B1-E959143DB3DA}",
+        "unique_id": "{002D5866-0050-0000-8E40-00608CF305B2}"
+      },
+      "85": {
+        "name": "Data Graphic",
+        "nameU": "Data Graphic",
+        "master_type": "2",
+        "base_id": "{16EF6B15-7BD6-4717-A85A-2D9D96E01991}",
+        "unique_id": "{3C2EF7C2-0055-0000-8E40-00608CF305B2}"
+      },
+      "138": {
+        "name": "Report shape US units.138",
+        "nameU": "Report shape US units.138",
+        "master_type": "2",
+        "base_id": "{7A2E14D4-A68D-4DC4-8689-F96AED961C4D}",
+        "unique_id": "{002D5866-008A-0000-8E40-00608CF305B2}"
+      }
+    },
+    "master_count": 86,
+    "master_names": [
+      "Trinzic 1400 Series",
+      "Trinzic 1400 Series - Front",
+      "Trinzic 1400 Series HA",
+      "Trinzic 1400 Series HA - Front",
+      "Trinzic 800 Series",
+      "Trinzic 800 Series - Front",
+      "Trinzic 800 Series HA",
+      "Trinzic 800 Series HA - Front",
+      "Trinzic 2200 Series",
+      "Trinzic 2200 Series - Front",
+      "Trinzic 2200 Series HA",
+      "Trinzic 2200 Series HA - Front",
+      "Trinzic 4000 Series",
+      "Trinzic 4000 Series - Front",
+      "Trinzic 4000 Series HA",
+      "Trinzic 4000 Series HA - Front",
+      "Reporting Member 2016-03",
+      "ActiveTrust Cloud",
+      "Out of Scope box",
+      "Firewall",
+      "Crown - Gold",
+      "Crown - Silver",
+      "Cloud Member",
+      "AWS cloud",
+      "Azure Cloud",
+      "ADP Member",
+      "ADP Member HA",
+      "vNIOS on VMware",
+      "vNIOS on VMware HA",
+      "Trinzic 100 Series",
+      "vNIOS on Cisco",
+      "vNIOS on Riverbed",
+      "IPAM for Microsoft",
+      "DNS Firewall Group",
+      "NetMRI",
+      "Unit Notes",
+      "Best Practices Implemented",
+      "Legend",
+      "Model Legend",
+      "Internet DNS",
+      "Model Legend - OLD",
+      "Firewall Vertical",
+      "Firewall Horizontal",
+      "DNS Query Line",
+      "DNS Response Line",
+      "DHCP Failover Connector",
+      "Microsoft DNS Server",
+      "Microsoft DHCP Server",
+      "Switch",
+      "Router",
+      "Cloud",
+      "Servers 2",
+      "Dynamic connector",
+      "User + Computer",
+      "Env - DNS",
+      "Env - DHCP",
+      "Env - MS AD",
+      "Documents - Reporting",
+      "Policy - NetMRI",
+      "FireEye",
+      "FireEye Front",
+      "Triangle callout.18",
+      "Classic",
+      "Reporting Member",
+      "DNS Firewall Shield",
+      "Microsoft Server 3D",
+      "Generic Server 3D",
+      "laptop",
+      "user",
+      "Modifier - Reporting",
+      "Modifier - NI",
+      "Text callout",
+      "Bubble callout",
+      "Data Graphic.60",
+      "Circle callout",
+      "Triangle callout",
+      "Heading 3",
+      "Report shape US units",
+      "Data Graphic.24",
+      "Heading 1",
+      "Data Graphic.32",
+      "Trend arrows 1",
+      "Flags",
+      "Border rectangle",
+      "Data Graphic",
+      "Report shape US units.138"
+    ],
+    "complexity": "complex",
+    "scan_date": "2026-05-01T18:44:29.041581"
+  },
+  "IT Vendors\\Organizational Stencils v7.3.1.vssx": {
+    "name": "Organizational Stencils v7.3.1",
+    "category": "general",
+    "keywords": [],
+    "use_cases": [],
+    "masters": {
+      "63": {
+        "name": "Microsoft color chart",
+        "nameU": "Microsoft color chart",
+        "master_type": "2",
+        "base_id": "{BAF7CADD-EE62-4C83-9699-CC5818D0B23D}",
+        "unique_id": "{1E9F60AD-003F-0000-8E40-00608CF305B2}"
+      },
+      "105": {
+        "name": "Symbol Color Meanings",
+        "nameU": "Symbol Color Meanings",
+        "master_type": "2",
+        "base_id": "{AE53EE15-3E92-4D45-AF34-2C0605102D77}",
+        "unique_id": "{1E9F60BC-0069-0000-8E40-00608CF305B2}"
+      },
+      "53": {
+        "name": "Primary box color",
+        "nameU": "Primary box",
+        "master_type": "2",
+        "base_id": "{1830E3EB-9CD2-4C09-8751-A774A136C539}",
+        "unique_id": "{1E9F60AD-0035-0000-8E40-00608CF305B2}"
+      },
+      "52": {
+        "name": "2nd box color",
+        "nameU": "Secondary box",
+        "master_type": "2",
+        "base_id": "{ED6083F2-B31E-4226-A9F2-7F1EAE8B4F3B}",
+        "unique_id": "{1E9F60AD-0034-0000-8E40-00608CF305B2}"
+      },
+      "54": {
+        "name": "3rd box color",
+        "nameU": "3rd box color",
+        "master_type": "2",
+        "base_id": "{6D098710-24F0-4799-8EFF-29881ECEEBD6}",
+        "unique_id": "{1E9F60AD-0036-0000-8E40-00608CF305B2}"
+      },
+      "138": {
+        "name": "Primary box",
+        "nameU": "",
+        "master_type": "2",
+        "base_id": "{FEE5F4D3-6A4D-46C5-BD8B-E712B66A0F2F}",
+        "unique_id": "{1E9F60BC-008A-0000-8E40-00608CF305B2}"
+      },
+      "140": {
+        "name": "box 2",
+        "nameU": "box 2",
+        "master_type": "2",
+        "base_id": "{6D361F51-27D8-436F-A721-2D149EF5E8F6}",
+        "unique_id": "{1E9F60BC-008C-0000-8E40-00608CF305B2}"
+      },
+      "139": {
+        "name": "box 3",
+        "nameU": "box 3",
+        "master_type": "2",
+        "base_id": "{12E19D5F-6448-4479-81DD-7DDBBDB93340}",
+        "unique_id": "{1E9F60BC-008B-0000-8E40-00608CF305B2}"
+      },
+      "17": {
+        "name": "white box to block out",
+        "nameU": "white square to block out",
+        "master_type": "2",
+        "base_id": "{3F97FC06-D858-4D21-BC0E-D5E04218D9AE}",
+        "unique_id": "{1E9F60AD-0011-0000-8E40-00608CF305B2}"
+      },
+      "137": {
+        "name": "Dotted line box no fill",
+        "nameU": "Dotted line box no fill",
+        "master_type": "2",
+        "base_id": "{8D711E11-E45C-4ED6-88AC-BE652130158C}",
+        "unique_id": "{1E9F60BC-0089-0000-8E40-00608CF305B2}"
+      },
+      "126": {
+        "name": "Line",
+        "nameU": "Line 1",
+        "master_type": "1",
+        "base_id": "{FF4552B7-4D40-494F-BF36-FF5CF4C138D5}",
+        "unique_id": "{1E9F60BC-007E-0000-8E40-00608CF305B2}"
+      },
+      "114": {
+        "name": "Arrow",
+        "nameU": "Line 1 one arrow",
+        "master_type": "1",
+        "base_id": "{B12351F5-CD43-4328-8B4B-6512DBFFA4D8}",
+        "unique_id": "{1E9F60BC-0072-0000-8E40-00608CF305B2}"
+      },
+      "112": {
+        "name": "Arrow double",
+        "nameU": "Line1 double arrow",
+        "master_type": "1",
+        "base_id": "{7F3DD6B7-F62F-4F0B-B5DE-E3A5A8FEA037}",
+        "unique_id": "{1E9F60BC-0070-0000-8E40-00608CF305B2}"
+      },
+      "121": {
+        "name": "Arrow horz text",
+        "nameU": "Arrow1 horz text",
+        "master_type": "541",
+        "base_id": "{82946961-9D49-465A-9AB3-607AB98E4325}",
+        "unique_id": "{1E9F60BC-0079-0000-8E40-00608CF305B2}"
+      },
+      "145": {
+        "name": "Arrow Dyn Connector",
+        "nameU": "Arrow Dyn Connector",
+        "master_type": "541",
+        "base_id": "{970D1081-C8F4-46B9-9F3C-20EBFFEF0DE3}",
+        "unique_id": "{1E9F60BC-0091-0000-8E40-00608CF305B2}"
+      },
+      "128": {
+        "name": "Multi-Branch Line",
+        "nameU": "Multi-Branch Line",
+        "master_type": "2",
+        "base_id": "{9E73E13E-9FD7-4B8C-B522-BF25921DEC8F}",
+        "unique_id": "{1E9F60BC-0080-0000-8E40-00608CF305B2}"
+      },
+      "134": {
+        "name": "Arrow Arc",
+        "nameU": "Arrow Arc",
+        "master_type": "8197",
+        "base_id": "{92795EA3-5DCB-48DA-8129-2968A175D14E}",
+        "unique_id": "{1E9F60BC-0086-0000-8E40-00608CF305B2}"
+      },
+      "133": {
+        "name": "Line WB",
+        "nameU": "Line WB",
+        "master_type": "1",
+        "base_id": "{E066324F-2B21-411C-9614-64148B51B76F}",
+        "unique_id": "{1E9F60BC-0085-0000-8E40-00608CF305B2}"
+      },
+      "124": {
+        "name": "Arrow white backgrd (WB)",
+        "nameU": "Arrow2 white background (WB)",
+        "master_type": "1",
+        "base_id": "{354AAB65-3FBB-4CED-9DC3-7161E2B95109}",
+        "unique_id": "{1E9F60BC-007C-0000-8E40-00608CF305B2}"
+      },
+      "123": {
+        "name": "Arrow2 double WB",
+        "nameU": "Arrow2",
+        "master_type": "1",
+        "base_id": "{42F6B6FA-5E54-4D17-A24F-7A3979169ECF}",
+        "unique_id": "{1E9F60BC-007B-0000-8E40-00608CF305B2}"
+      },
+      "125": {
+        "name": "Arrow2 horz text WB",
+        "nameU": "Arrow2 horz text WB",
+        "master_type": "541",
+        "base_id": "{2F8CEA61-9904-4A34-8B20-F1AF85F5B05C}",
+        "unique_id": "{1E9F60BC-007D-0000-8E40-00608CF305B2}"
+      },
+      "84": {
+        "name": "Line3 attach center shape",
+        "nameU": "LineWB1 attach center shape",
+        "master_type": "541",
+        "base_id": "{D00CC211-A840-44ED-BA12-D4A33FD474E4}",
+        "unique_id": "{1E9F60AD-0054-0000-8E40-00608CF305B2}"
+      },
+      "94": {
+        "name": "Line color 2",
+        "nameU": "Line color 2",
+        "master_type": "1",
+        "base_id": "{ADE0FE7B-92AA-4FDA-9D64-8D35D985601A}",
+        "unique_id": "{1E9F60AD-005E-0000-8E40-00608CF305B2}"
+      },
+      "95": {
+        "name": "Line color 3",
+        "nameU": "Line1 color 3",
+        "master_type": "1",
+        "base_id": "{81B607EC-03FF-41BF-AABD-DD1385D8929E}",
+        "unique_id": "{1E9F60AD-005F-0000-8E40-00608CF305B2}"
+      },
+      "129": {
+        "name": "Arrow (Azure Poster style)",
+        "nameU": "Arrow (Azure Poster style)",
+        "master_type": "541",
+        "base_id": "{BE101666-74BB-49AF-9D07-8A6CEC514932}",
+        "unique_id": "{1E9F60BC-0081-0000-8E40-00608CF305B2}"
+      },
+      "131": {
+        "name": "Arrow (Azure Poster style).131",
+        "nameU": "Arrow (Azure Poster style).131",
+        "master_type": "541",
+        "base_id": "{E1F6B961-6315-47E2-8F73-F06AE1DABA38}",
+        "unique_id": "{1E9F60BC-0083-0000-8E40-00608CF305B2}"
+      },
+      "44": {
+        "name": "blow out dotted lines",
+        "nameU": "blow out dotted line",
+        "master_type": "2",
+        "base_id": "{A27135F0-D3C8-4EC2-B6CE-259EB86F1A0B}",
+        "unique_id": "{1E9F60AD-002C-0000-8E40-00608CF305B2}"
+      },
+      "81": {
+        "name": "LineFat arrow right",
+        "nameU": "LineFat right",
+        "master_type": "1",
+        "base_id": "{A99B5ABC-3036-4BD6-93CF-3CB81E9BFD11}",
+        "unique_id": "{1E9F60AD-0051-0000-8E40-00608CF305B2}"
+      },
+      "82": {
+        "name": "LineFat arrow double",
+        "nameU": "1D wide arrow double",
+        "master_type": "1",
+        "base_id": "{B8F03A2C-A8C2-4316-B802-1DE7BCECA873}",
+        "unique_id": "{1E9F60AD-0052-0000-8E40-00608CF305B2}"
+      },
+      "144": {
+        "name": "numbered label",
+        "nameU": "numbered label",
+        "master_type": "2",
+        "base_id": "{6F3A0263-83B1-417D-8B36-AF174FFBB2E1}",
+        "unique_id": "{1E9F60BC-0090-0000-8E40-00608CF305B2}"
+      },
+      "143": {
+        "name": "num label rotate ptr",
+        "nameU": "num label rotate ptr",
+        "master_type": "2",
+        "base_id": "{AC836761-5049-4824-8854-F1EADA1C42E6}",
+        "unique_id": "{1E9F60BC-008F-0000-8E40-00608CF305B2}"
+      },
+      "97": {
+        "name": "BORDER for 8.5x11 page",
+        "nameU": "BORDER for 8.5x11",
+        "master_type": "2",
+        "base_id": "{61E57015-4DFC-440F-991A-0DA1C95FD1EB}",
+        "unique_id": "{1E9F60AD-0061-0000-8E40-00608CF305B2}"
+      },
+      "96": {
+        "name": "Golden mean rectangle.1165",
+        "nameU": "Golden mean rectangle.1165",
+        "master_type": "2",
+        "base_id": "{CD643264-EDF6-4D80-822F-061CD6056D38}",
+        "unique_id": "{1E9F60AD-0060-0000-8E40-00608CF305B2}"
+      },
+      "102": {
+        "name": "Alignment helper",
+        "nameU": "Alignment Helper2",
+        "master_type": "2",
+        "base_id": "{839A15EC-E7A6-4169-9B34-653443D4C412}",
+        "unique_id": "{1E9F60AD-0066-0000-8E40-00608CF305B2}"
+      },
+      "108": {
+        "name": "Theme Colors.1",
+        "nameU": "Theme Colors.1",
+        "master_type": "2",
+        "base_id": "{99852731-A5C9-4ED7-86A9-26EA7003DC18}",
+        "unique_id": "{0027E89D-03FA-0000-8E40-00608CF305B2}"
+      },
+      "109": {
+        "name": "Theme Colors.2",
+        "nameU": "Theme Colors.2",
+        "master_type": "2",
+        "base_id": "{A8DC3D49-B855-4CCF-8062-0396878D58FC}",
+        "unique_id": "{0027E8CC-03FD-0000-8E40-00608CF305B2}"
+      },
+      "110": {
+        "name": "Theme Colors.3",
+        "nameU": "Theme Colors.3",
+        "master_type": "2",
+        "base_id": "{A47D5CD3-C5F7-47AA-BBEB-4EAA465CF89E}",
+        "unique_id": "{0027E8FA-0400-0000-8E40-00608CF305B2}"
+      },
+      "111": {
+        "name": "Theme Colors.4",
+        "nameU": "Theme Colors.4",
+        "master_type": "2",
+        "base_id": "{458B52FF-BE3E-45B0-A421-9DFE2D8292EA}",
+        "unique_id": "{0027E91A-0403-0000-8E40-00608CF305B2}"
+      },
+      "141": {
+        "name": "Segoe UI Text 10pt",
+        "nameU": "Segoe UI Text 10pt",
+        "master_type": "2",
+        "base_id": "{D6B45161-41D2-4C52-8D57-46BBDD25829F}",
+        "unique_id": "{1E9F60BC-008D-0000-8E40-00608CF305B2}"
+      }
+    },
+    "master_count": 39,
+    "master_names": [
+      "Microsoft color chart",
+      "Symbol Color Meanings",
+      "Primary box color",
+      "2nd box color",
+      "3rd box color",
+      "Primary box",
+      "box 2",
+      "box 3",
+      "white box to block out",
+      "Dotted line box no fill",
+      "Line",
+      "Arrow",
+      "Arrow double",
+      "Arrow horz text",
+      "Arrow Dyn Connector",
+      "Multi-Branch Line",
+      "Arrow Arc",
+      "Line WB",
+      "Arrow white backgrd (WB)",
+      "Arrow2 double WB",
+      "Arrow2 horz text WB",
+      "Line3 attach center shape",
+      "Line color 2",
+      "Line color 3",
+      "Arrow (Azure Poster style)",
+      "Arrow (Azure Poster style).131",
+      "blow out dotted lines",
+      "LineFat arrow right",
+      "LineFat arrow double",
+      "numbered label",
+      "num label rotate ptr",
+      "BORDER for 8.5x11 page",
+      "Golden mean rectangle.1165",
+      "Alignment helper",
+      "Theme Colors.1",
+      "Theme Colors.2",
+      "Theme Colors.3",
+      "Theme Colors.4",
+      "Segoe UI Text 10pt"
+    ],
+    "complexity": "medium",
+    "scan_date": "2026-05-01T18:44:43.340743"
   }
 }

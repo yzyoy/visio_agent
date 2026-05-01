@@ -19,9 +19,13 @@ Import boundary (refactor):
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+import re
+from collections import OrderedDict
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -29,6 +33,32 @@ from .library_cache import get_library_cache
 from ..context.instruction_loader import get_instruction_loader
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Determinism knobs.
+#
+# ``recommend_template`` used to drift between runs because the underlying
+# OpenAI-compatible model was called with default sampling (temperature ~1.0,
+# no fixed seed). For a *recommendation* surface we explicitly want the same
+# input to map to the same output, so we force greedy decoding and a fixed
+# seed whenever the injected model exposes those attributes (agno's
+# ``OpenAIChat`` does — see ``apps/agent_os.py``).
+#
+# These values are deliberately conservative: temperature=0 + top_p=1 +
+# fixed seed is the standard recipe for "make this LLM call as deterministic
+# as the provider allows" without destroying retries on transient failures.
+# ---------------------------------------------------------------------------
+_DETERMINISTIC_TEMPERATURE = 0.0
+_DETERMINISTIC_TOP_P = 1.0
+_DETERMINISTIC_SEED = 42
+
+# Toggle the recommendation cache via env var for offline replay / debugging.
+_CACHE_DISABLED_ENV = "VISIO_RECOMMENDATION_CACHE_DISABLED"
+# Bound the in-memory cache so a long-lived agent process does not grow
+# without limit. 256 distinct prompts is more than enough for interactive
+# sessions; cache keys are normalized so semantically equivalent requirements
+# collapse to the same entry.
+_CACHE_MAX_ENTRIES = 256
 
 
 def _build_user_message(content: str) -> Any:
@@ -97,6 +127,89 @@ def _complete(model: Any, prompt: str) -> str:
     )
 
 
+@contextmanager
+def _deterministic_sampling(model: Any):
+    """Temporarily force greedy / fixed-seed sampling on ``model``.
+
+    Many agno / OpenAI-compatible chat models expose ``temperature``,
+    ``top_p`` and ``seed`` as plain attributes. We swap them to deterministic
+    values for the duration of a recommendation call and restore the prior
+    values on exit so we don't perturb other tools that rely on the same
+    model instance (e.g. the planner).
+
+    The context manager is silent when the attributes are not present —
+    ``recommend_template`` still works with toy/test models that only
+    implement ``complete()``.
+    """
+    if model is None:
+        yield
+        return
+
+    saved: Dict[str, Any] = {}
+    deterministic_values = {
+        "temperature": _DETERMINISTIC_TEMPERATURE,
+        "top_p": _DETERMINISTIC_TOP_P,
+        "seed": _DETERMINISTIC_SEED,
+    }
+
+    for attr, value in deterministic_values.items():
+        if hasattr(model, attr):
+            try:
+                saved[attr] = getattr(model, attr)
+                setattr(model, attr, value)
+            except Exception:  # pragma: no cover - defensive: read-only attr
+                saved.pop(attr, None)
+
+    try:
+        yield
+    finally:
+        for attr, original in saved.items():
+            try:
+                setattr(model, attr, original)
+            except Exception:  # pragma: no cover
+                pass
+
+
+def _complete_deterministic(model: Any, prompt: str) -> str:
+    """Deterministic wrapper around :func:`_complete`.
+
+    Wraps the LLM invocation with :func:`_deterministic_sampling` so the
+    same prompt yields the same response across runs whenever the provider
+    honors the ``seed`` parameter (DeepSeek and OpenAI both do).
+    """
+    with _deterministic_sampling(model):
+        return _complete(model, prompt)
+
+
+def _normalize_requirement(text: str) -> str:
+    """Canonical form used for cache keys.
+
+    We collapse whitespace and strip punctuation noise so that semantically
+    equivalent re-phrasings (extra spaces, trailing periods, mixed case for
+    English fragments) collapse to the same cache entry.
+    """
+    if not text:
+        return ""
+    # Remove runs of whitespace; preserve CJK characters as-is.
+    collapsed = re.sub(r"\s+", " ", text.strip())
+    # Drop trailing punctuation that doesn't change intent.
+    collapsed = collapsed.rstrip("。.!?！？,，;；:：")
+    return collapsed.lower()
+
+
+def _cache_key(requirement: str, search_type: str, top_k: int) -> str:
+    payload = json.dumps(
+        {
+            "r": _normalize_requirement(requirement),
+            "t": search_type,
+            "k": int(top_k),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
 class SmartMatcher:
     """智能匹配器 - 用于模板和形状库的智能匹配"""
     
@@ -132,7 +245,15 @@ class SmartMatcher:
         # 缓存配置
         self.use_cache = use_cache
         self._cache = get_library_cache() if use_cache else None
-        
+
+        # Recommendation result cache. Keyed by a hash of
+        # (normalized requirement, search_type, top_k); bounded LRU.
+        # Disable via env var when reproducing intermittent issues.
+        self._reco_cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+        self._reco_cache_disabled = bool(
+            os.environ.get(_CACHE_DISABLED_ENV, "").strip()
+        )
+
         # 延迟加载：只有在需要时才加载
         self._templates_lite = None  # 精简版用于关键词筛选
         self._stencils_lite = None   # 精简版用于关键词筛选
@@ -253,7 +374,7 @@ class SmartMatcher:
         prompt = prompt_template.replace('{chinese_text}', chinese_text)
         
         try:
-            result_text = _complete(model, prompt).strip()
+            result_text = _complete_deterministic(model, prompt).strip()
 
             # Parse JSON response
             if "```json" in result_text:
@@ -348,9 +469,14 @@ class SmartMatcher:
                 }
                 results.append(result)
         
-        # Sort by score
-        results.sort(key=lambda x: x['keyword_match_score'], reverse=True)
-        
+        # Sort by score (deterministic tiebreaker: lexicographic by filename).
+        # Without the secondary key, dict-iteration order or score ties could
+        # silently flip the ordering across runs, which is what callers
+        # observed before this fix.
+        results.sort(
+            key=lambda x: (-x['keyword_match_score'], x.get('filename', ''))
+        )
+
         print(f"✓ 关键词筛选: 找到 {len(results)} 个匹配项 (最小分数: {min_match_score})")
         return results
     
@@ -423,8 +549,15 @@ class SmartMatcher:
                 results.append(result)
                 passed_count += 1
         
-        # 5. 按综合分数排序
-        results.sort(key=lambda x: x['combined_score'], reverse=True)
+        # 5. 按综合分数排序（稳定 + 字典序 tiebreaker，保证多次运行结果一致）
+        results.sort(
+            key=lambda x: (
+                -x['combined_score'],
+                -x['structure_match_score'],
+                -x['keyword_match_score'],
+                x.get('filename', ''),
+            )
+        )
         
         # 优化的日志输出
         print(f"✓ 关键词+结构筛选: 找到 {len(results)} 个匹配项")
@@ -785,8 +918,8 @@ class SmartMatcher:
             prompt += f"\n\n## 评分权重策略\n\n{scoring_strategy}"
         
         try:
-            result_text = _complete(model, prompt).strip()
-            
+            result_text = _complete_deterministic(model, prompt).strip()
+
             # 🐛 DEBUG: Print raw response to diagnose formatting issues
             print(f"\n{'='*60}")
             print(f"🐛 调试信息 - LLM原始响应:")
@@ -886,14 +1019,26 @@ class SmartMatcher:
                         if not template_path:
                             # 如果都没有，使用original的filename构建路径
                             template_path = f"assets/templates/library/{original['filename']}"
-                    
+
+                    # Blend LLM score with the deterministic structural score
+                    # so that small LLM-side fluctuations cannot reorder
+                    # near-tied candidates. The LLM still drives the headline
+                    # ranking (70%), but the structural score (already stable)
+                    # acts as an anchor that keeps repeat runs identical.
+                    llm_score_raw = float(rec.get('llm_score', 0) or 0)
+                    combined_score = float(original.get('combined_score', 0) or 0)
+                    final_score = round(
+                        0.7 * llm_score_raw + 0.3 * (combined_score * 10.0), 3
+                    )
+
                     merged = {
                         **original,
-                        'llm_score': rec.get('llm_score', 0),
+                        'llm_score': llm_score_raw,
+                        'final_score': final_score,
                         'template_path': template_path,  # 使用确保正确的路径
                         'structure_description': rec.get('structure_description', ''),
                         'dimension_scores': rec.get('dimension_scores', {}),
-                        'final_rank': len(final_results) + 1
+                        'final_rank': len(final_results) + 1,
                     }
                     final_results.append(merged)
                 else:
@@ -923,6 +1068,22 @@ class SmartMatcher:
                 print(f"失败的文件名: {', '.join(match_failures)}")
             print(f"{'='*60}\n")
             
+            # Deterministic re-sort: blended ``final_score`` then stable
+            # tiebreakers. Without this, two candidates with identical
+            # ``llm_score`` (which DeepSeek often returns for close calls)
+            # would keep whatever order the LLM emitted them in — and that
+            # order is *not* stable across runs even with seed=0.
+            final_results.sort(
+                key=lambda r: (
+                    -float(r.get('final_score', 0) or 0),
+                    -float(r.get('llm_score', 0) or 0),
+                    -float(r.get('combined_score', 0) or 0),
+                    r.get('filename', ''),
+                )
+            )
+            for idx, item in enumerate(final_results, 1):
+                item['final_rank'] = idx
+
             warnings: List[str] = []
             if match_failures:
                 warnings.append(
@@ -1347,10 +1508,22 @@ class SmartMatcher:
         print(f"\n{'='*60}")
         print(f"🔍 开始智能匹配 - 搜索类型: {search_type}")
         print(f"{'='*60}")
+
+        # Step 0: cache lookup. Repeated calls with the same requirement
+        # short-circuit to the previously computed payload so the user sees
+        # truly identical recommendations on retries.
+        cache_key = _cache_key(user_input, search_type, top_k)
+        if not self._reco_cache_disabled and cache_key in self._reco_cache:
+            cached = self._reco_cache[cache_key]
+            self._reco_cache.move_to_end(cache_key)
+            print(f"⚡ 命中推荐缓存 (key={cache_key[:10]}…)，复用上次结果")
+            # Return a defensive deep copy so callers can mutate freely.
+            return json.loads(json.dumps(cached, ensure_ascii=False))
+
         warnings: List[str] = []
         fallback_used = False
         error_code: Optional[str] = None
-        
+
         # Step 1: Extract English keywords and requirement analysis from input
         print("\n📝 步骤 1: 提取英文关键词和需求分析...")
         extraction_result = self.extract_english_keywords(user_input, model)
@@ -1430,8 +1603,29 @@ class SmartMatcher:
         print(f"\n{'='*60}")
         print(f"✅ 智能匹配完成")
         print(f"{'='*60}\n")
-        
+
+        # Cache successful (non-error) results so subsequent identical
+        # requests are byte-identical. Errors are intentionally not cached:
+        # the next call should re-attempt the LLM rather than memoize a
+        # transient failure.
+        if (
+            not self._reco_cache_disabled
+            and output.get("status") != "error"
+            and output.get("recommendations")
+        ):
+            self._reco_cache[cache_key] = json.loads(
+                json.dumps(output, ensure_ascii=False)
+            )
+            self._reco_cache.move_to_end(cache_key)
+            while len(self._reco_cache) > _CACHE_MAX_ENTRIES:
+                self._reco_cache.popitem(last=False)
+
         return output
+
+    # Public testing/debugging helper.
+    def clear_recommendation_cache(self) -> None:
+        """Drop the in-memory recommendation cache. Used by tests / admins."""
+        self._reco_cache.clear()
     
     def _format_chinese_output(self, user_input: str, keywords: List[str],
                               results: List[Dict[str, Any]], 
@@ -1489,11 +1683,19 @@ class SmartMatcher:
                     )
             
             # 核心信息：路径、得分、描述
+            # ``final_score`` is the blended LLM+structure score that drives
+            # the deterministic ranking. Fall back gracefully for older code
+            # paths (keyword fallback / direct callers) that only have one
+            # of the legacy scores.
+            score_value = item.get(
+                'final_score',
+                item.get('llm_score', item.get('combined_score', 0)),
+            )
             recommendation = {
                 "rank": i,
                 "filename": item.get('filename', ''),
                 "path": template_path,
-                "score": round(item.get('llm_score', item.get('combined_score', 0)), 1),
+                "score": round(float(score_value or 0), 1),
                 "description": item.get('structure_description', ''),
             }
             

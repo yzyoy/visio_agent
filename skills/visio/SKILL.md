@@ -36,8 +36,15 @@ exceptions below:
    `open_document(same_path)` before any connector verification. This is
    the diary 11/13 lesson, now enforced at the protocol level through
    the `SAVE_REQUIRES_RELOAD` error code.
-7. **Render** — `render_page(page=0, scale=2.0, mode="data")` to
-   confirm. Mode `"url"` for images larger than the 120 KB data-URI cap.
+7. **Render and surface preview** — `render_page(page=0, scale=2.0,
+   mode="url")` to confirm. The tool returns **two artefacts in a single
+   reply**: an inline fit-window image *and* a markdown link to the
+   interactive viewer (`/api/visio/preview?path=...`). Both are funnelled
+   through the same `render_and_cache_preview` pipeline as the HTML
+   viewer, so the chat preview is byte-identical to what the user sees
+   when they open the link — never a cropped title bar or half-rendered
+   page. Mode `"data"` inlines the PNG as a base64 data URI for offline
+   replay; it still returns the same interactive viewer link.
 
 ## 2. Selector conventions
 
@@ -65,13 +72,31 @@ exceptions below:
    offline pipeline in `tools-offline/library_maintenance/` is the
    authoritative check; `recommend_template` assumes its output is
    clean. See diary `11_4`.
+6. **Never deliver a preview without the interactive link.** A bare
+   inline image is unverifiable — the chat UI may crop the height,
+   compress the title, or fail to load at all. Every preview reply must
+   include the `[name](http://localhost:7777/api/visio/preview?path=...)`
+   link so the user has a guaranteed fit-window, zoomable surface.
+   `render_page` already returns both; forward its full output verbatim.
 
 ## 4. Output conventions
 
 - Generated files go to `outputs/<session>/` (gitignored). The agno
   shell supplies the session id.
-- Preview images: prefer `render_page(mode="data")` when the image is
-  under the 120 KB cap; otherwise use `mode="url"` and return the URL.
+- **Preview link is mandatory.** Every reply that produces, edits, or
+  inspects a `.vsdx` file MUST end with the interactive preview link
+  in markdown form:
+  `[文件名](http://localhost:7777/api/visio/preview?path=<完整路径>)`.
+  The link is what gives the user a fully fit-window, zoomable view.
+  Forgetting it is a regression — the rendered PNG alone is not enough.
+- **Preview images must be complete.** Always call `render_page` (which
+  uses the `render_and_cache_preview` pipeline) instead of constructing
+  raw `/static/visio/...` URLs by hand. The tool returns both the
+  fit-window inline image and the interactive viewer link in one
+  payload; forward both to the user verbatim.
+- Prefer `render_page(mode="url")` for any non-trivial diagram. Only
+  fall back to `mode="data"` when the user has explicitly asked for an
+  offline / log-replay-friendly response and the diagram is small.
 - Always return the path of the saved document in the final assistant
   message so the user can re-open it.
 
