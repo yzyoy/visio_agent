@@ -78,6 +78,11 @@ exceptions below:
    include the `[name](http://localhost:7777/api/visio/preview?path=...)`
    link so the user has a guaranteed fit-window, zoomable surface.
    `render_page` already returns both; forward its full output verbatim.
+7. **Template deletions may leave stale connector references until cleanup is confirmed.**
+   After deleting shapes from a template or partially edited file,
+   assume some connectors may still carry deleted `Sheet.<id>` refs.
+   Rely on the strengthened connector cleanup or an explicit orphan
+   scan, not on "shape removed" wording alone.
 
 ## 4. Output conventions
 
@@ -99,6 +104,10 @@ exceptions below:
   offline / log-replay-friendly response and the diagram is small.
 - Always return the path of the saved document in the final assistant
   message so the user can re-open it.
+- When reporting a deletion result, explicitly state connector cleanup:
+  say that connectors touching deleted shapes were removed, listed for
+  follow-up, or that an orphan scan ran and found none. Never imply
+  `shape removed` alone guarantees a clean page.
 
 ## 5. When NOT to act
 

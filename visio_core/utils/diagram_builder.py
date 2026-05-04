@@ -1134,6 +1134,12 @@ class DiagramBuilder:
             # Remove the shape itself
             shape.remove()
 
+            # Template cleanup can leave half-connected or formula-only orphan
+            # connectors behind; remove them before rebuilding inventory.
+            orphaned_removed = self.cleanup_orphaned_connectors()
+            if orphaned_removed:
+                print(f"Removed {orphaned_removed} orphaned connectors after shape deletion")
+
             # Rebuild edge inventory after changes
             self.edge_manager.build_edge_inventory(force_rebuild=True)
 
@@ -1257,6 +1263,112 @@ class DiagramBuilder:
         for input_conn in input_connectors:
             for output_conn in output_connectors:
                 self._create_bypass_connection(input_conn, output_conn)
+
+    def _extract_shape_ids_from_formula(self, formula: Any) -> Set[str]:
+        """Extract referenced shape IDs from a Visio cell formula."""
+        if formula is None:
+            return set()
+        return set(re.findall(r'Sheet\.?(\d+)!', str(formula), flags=re.IGNORECASE))
+
+    def _iter_connector_cell_formulas(self, connector: Any) -> Iterable[Tuple[str, str]]:
+        """Yield connector cell names and formulas from both object and XML views."""
+        seen: Set[Tuple[str, str]] = set()
+
+        if hasattr(connector, 'cells'):
+            try:
+                cells = connector.cells or {}
+                if hasattr(cells, 'items'):
+                    for cell_name, cell in cells.items():
+                        formula = None
+                        if isinstance(cell, dict):
+                            formula = cell.get('formula') or cell.get('F')
+                        else:
+                            formula = getattr(cell, 'formula', None) or getattr(cell, 'F', None)
+                        if formula:
+                            item = (str(cell_name), str(formula))
+                            if item not in seen:
+                                seen.add(item)
+                                yield item
+            except Exception:
+                pass
+
+        if hasattr(connector, 'xml') and connector.xml is not None:
+            try:
+                ns = {'v': 'http://schemas.microsoft.com/office/visio/2012/main'}
+                xml_cells = connector.xml.findall('.//v:Cell', ns)
+                if not xml_cells:
+                    xml_cells = connector.xml.findall('.//Cell')
+                for cell in xml_cells:
+                    cell_name = cell.get('N', '')
+                    formula = cell.get('F')
+                    if formula:
+                        item = (str(cell_name), str(formula))
+                        if item not in seen:
+                            seen.add(item)
+                            yield item
+            except Exception:
+                pass
+
+    def _get_connector_formula_references(self, connector: Any) -> Dict[str, Set[str]]:
+        """Collect connector shape references from Begin/End formulas and triggers."""
+        references = {'source': set(), 'target': set(), 'all': set()}
+
+        for cell_name, formula in self._iter_connector_cell_formulas(connector):
+            shape_ids = self._extract_shape_ids_from_formula(formula)
+            if not shape_ids:
+                continue
+
+            references['all'].update(shape_ids)
+            cell_name = str(cell_name or '')
+            if cell_name.startswith(('Beg', 'Begin')):
+                references['source'].update(shape_ids)
+            elif cell_name.startswith('End'):
+                references['target'].update(shape_ids)
+
+        return references
+
+    def get_connector_reference_summary(self, connector: Any) -> Dict[str, Any]:
+        """Summarize a connector's endpoint and formula-based shape references."""
+        endpoints = self._get_connector_endpoints(connector)
+        connect_refs: Set[str] = set()
+
+        try:
+            if hasattr(connector, 'connects') and connector.connects:
+                for conn in connector.connects:
+                    shape_id = getattr(conn, 'shape_id', None) or getattr(conn, 'to_id', None)
+                    if shape_id:
+                        connect_refs.add(str(shape_id))
+        except Exception:
+            pass
+
+        formula_refs = self._get_connector_formula_references(connector)
+        referenced_shape_ids = set(connect_refs)
+        referenced_shape_ids.update(formula_refs['all'])
+        if endpoints['source']:
+            referenced_shape_ids.add(endpoints['source'])
+        if endpoints['target']:
+            referenced_shape_ids.add(endpoints['target'])
+
+        existing_shape_ids = set()
+        if self.current_page:
+            for shape in self.current_page.child_shapes:
+                shape_id = getattr(shape, 'ID', None)
+                if shape_id is not None:
+                    existing_shape_ids.add(str(shape_id))
+
+        missing_shape_ids = {
+            shape_id for shape_id in referenced_shape_ids
+            if shape_id not in existing_shape_ids
+        }
+
+        return {
+            'source': endpoints['source'],
+            'target': endpoints['target'],
+            'connect_shape_ids': connect_refs,
+            'formula_shape_ids': formula_refs['all'],
+            'referenced_shape_ids': referenced_shape_ids,
+            'missing_shape_ids': missing_shape_ids,
+        }
     
     def cleanup_orphaned_connectors(self) -> int:
         """
@@ -1276,17 +1388,13 @@ class DiagramBuilder:
                 continue
             
             try:
-                is_orphaned = False
-                
-                if hasattr(connector, 'connects') and connector.connects:
-                    for conn in connector.connects:
-                        connected_shape_id = getattr(conn, 'shape_id', None)
-                        if connected_shape_id:
-                            connected_shape = self.get_shape_by_id(str(connected_shape_id))
-                            if not connected_shape:
-                                is_orphaned = True
-                                break
-                
+                reference_summary = self.get_connector_reference_summary(connector)
+                has_missing_refs = bool(reference_summary['missing_shape_ids'])
+                has_partial_attachment = bool(reference_summary['referenced_shape_ids']) and not (
+                    reference_summary['source'] and reference_summary['target']
+                )
+                is_orphaned = has_missing_refs or has_partial_attachment
+
                 if is_orphaned:
                     connectors_to_remove.append(connector)
                     orphaned_count += 1
@@ -1410,32 +1518,16 @@ class DiagramBuilder:
             except Exception:
                 pass
         
-        # Method 3: Check BegTrigger/EndTrigger cell formulas
+        # Method 3: Check connector formulas for Sheet.<id> references
         if (endpoints['source'] is None or endpoints['target'] is None):
             try:
-                if hasattr(connector, 'cells'):
-                    cells = connector.cells
-                    
-                    # Check BegTrigger for source
-                    if endpoints['source'] is None:
-                        beg_trigger = cells.get('BegTrigger')
-                        if beg_trigger and hasattr(beg_trigger, 'formula'):
-                            formula = beg_trigger.formula or ''
-                            # Formula looks like: _XFTRIGGER(Sheet5!EventXFMod)
-                            import re
-                            match = re.search(r'Sheet(\d+)!', formula)
-                            if match:
-                                endpoints['source'] = match.group(1)
-                    
-                    # Check EndTrigger for target
-                    if endpoints['target'] is None:
-                        end_trigger = cells.get('EndTrigger')
-                        if end_trigger and hasattr(end_trigger, 'formula'):
-                            formula = end_trigger.formula or ''
-                            import re
-                            match = re.search(r'Sheet(\d+)!', formula)
-                            if match:
-                                endpoints['target'] = match.group(1)
+                formula_refs = self._get_connector_formula_references(connector)
+
+                if endpoints['source'] is None and formula_refs['source']:
+                    endpoints['source'] = sorted(formula_refs['source'], key=int)[0]
+
+                if endpoints['target'] is None and formula_refs['target']:
+                    endpoints['target'] = sorted(formula_refs['target'], key=int)[0]
             except Exception:
                 pass
         

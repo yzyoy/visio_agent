@@ -27,7 +27,7 @@ import re
 from collections import OrderedDict
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .library_cache import get_library_cache
 from ..context.instruction_loader import get_instruction_loader
@@ -59,6 +59,94 @@ _CACHE_DISABLED_ENV = "VISIO_RECOMMENDATION_CACHE_DISABLED"
 # sessions; cache keys are normalized so semantically equivalent requirements
 # collapse to the same entry.
 _CACHE_MAX_ENTRIES = 256
+
+_GENERIC_RECOMMENDATION_TERMS = {
+    "architecture",
+    "architecture diagram",
+    "chart",
+    "diagram",
+    "flow",
+    "flowchart",
+    "layout",
+    "process",
+    "solution",
+    "structure",
+    "system",
+    "template",
+    "topology",
+    "visio",
+    "workflow",
+    "业务流程",
+    "图",
+    "图表",
+    "工作流",
+    "架构",
+    "架构图",
+    "模板",
+    "流程",
+    "流程图",
+    "示意图",
+    "系统",
+    "网络",
+    "网络图",
+    "组织",
+    "组织图",
+    "时序",
+    "时序图",
+}
+
+_REQUEST_FILLER_PATTERNS: Tuple[str, ...] = (
+    r"\bplease\b",
+    r"\bneed\b",
+    r"\bwant\b",
+    r"\bhelp\b",
+    r"\bmake\b",
+    r"\bcreate\b",
+    r"\bbuild\b",
+    r"\bdraw\b",
+    r"\bgenerate\b",
+    r"\bshow\b",
+    r"\bfind\b",
+    r"\bsearch\b",
+    r"\brecommend\b",
+    r"帮我",
+    r"帮忙",
+    r"请帮",
+    r"我想",
+    r"我要",
+    r"我需要",
+    r"需要",
+    r"想要",
+    r"画个",
+    r"画一个",
+    r"做个",
+    r"做一个",
+    r"创建",
+    r"生成",
+    r"设计",
+    r"推荐",
+    r"搜索",
+    r"查找",
+)
+
+_GENERIC_SUFFIXES: Tuple[str, ...] = (
+    "流程图",
+    "架构图",
+    "网络图",
+    "组织图",
+    "时序图",
+    "示意图",
+    "图表",
+    "模板",
+    "流程",
+    "架构",
+    "网络",
+    "组织",
+    "系统",
+    "方案",
+    "场景",
+    "图",
+)
 
 
 def _build_user_message(content: str) -> Any:
@@ -353,6 +441,278 @@ class SmartMatcher:
         except Exception as e:
             print(f"❌ 加载失败 {path}: {e}")
             return {}
+
+    def _dedupe_terms(self, items: List[str]) -> List[str]:
+        """Return terms with order preserved."""
+        seen = set()
+        result: List[str] = []
+        for item in items:
+            term = self._clean_term(item)
+            if not term:
+                continue
+            key = self._normalize_search_text(term)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            result.append(term)
+        return result
+
+    def _clean_term(self, value: Any) -> str:
+        """Normalize a candidate term without losing semantic text."""
+        if value is None:
+            return ""
+        term = str(value).strip().strip("'\"`[](){}")
+        term = re.sub(r"\s+", " ", term)
+        return term.strip()
+
+    def _coerce_text_list(self, value: Any) -> List[str]:
+        """Accept list / csv-like strings and return cleaned text items."""
+        if value is None:
+            return []
+        if isinstance(value, list):
+            raw_items = value
+        elif isinstance(value, str):
+            raw_items = re.split(r"[,，;/\n]+", value)
+        else:
+            raw_items = [value]
+        return self._dedupe_terms([str(item) for item in raw_items])
+
+    def _normalize_search_text(self, text: str) -> str:
+        """Canonical text form used for containment matching."""
+        if not text:
+            return ""
+        normalized = str(text).strip().lower()
+        normalized = re.sub(r"[_/\\-]+", " ", normalized)
+        normalized = re.sub(r"[^\w\u4e00-\u9fff\s]+", " ", normalized)
+        normalized = re.sub(r"\s+", " ", normalized)
+        return normalized.strip()
+
+    def _compact_search_text(self, text: str) -> str:
+        """Compact searchable text by dropping spaces / punctuation noise."""
+        return re.sub(r"[\W_]+", "", self._normalize_search_text(text))
+
+    def _is_generic_term(self, term: str) -> bool:
+        """Whether a term is too generic to act as a must-match gate."""
+        normalized = self._normalize_search_text(term)
+        compact = normalized.replace(" ", "")
+        return normalized in _GENERIC_RECOMMENDATION_TERMS or compact in _GENERIC_RECOMMENDATION_TERMS
+
+    def _term_in_user_input(self, term: str, user_input: str) -> bool:
+        """Check whether a grounded term appears in the original user text."""
+        normalized_term = self._normalize_search_text(term)
+        normalized_input = self._normalize_search_text(user_input)
+        if not normalized_term or not normalized_input:
+            return False
+        if normalized_term in normalized_input:
+            return True
+        return self._compact_search_text(normalized_term) in self._compact_search_text(normalized_input)
+
+    def _trim_generic_suffixes(self, term: str) -> List[str]:
+        """Derive tighter user-grounded variants by removing generic suffixes."""
+        variants: List[str] = []
+        cleaned = self._clean_term(term)
+        for suffix in _GENERIC_SUFFIXES:
+            if cleaned.endswith(suffix):
+                trimmed = cleaned[: -len(suffix)].strip(" 的-_")
+                if len(trimmed) >= 2 and not self._is_generic_term(trimmed):
+                    variants.append(trimmed)
+        return self._dedupe_terms(variants)
+
+    def _heuristic_grounded_terms(self, user_input: str) -> List[str]:
+        """Extract user-grounded domain phrases without inventing new terms."""
+        text = self._clean_term(user_input)
+        if not text:
+            return []
+
+        candidates: List[str] = []
+
+        for quoted in re.findall(r"[\"“”'‘’「『](.+?)[\"“”'‘’」』]", text):
+            if not self._is_generic_term(quoted):
+                candidates.append(quoted)
+
+        cleaned = text
+        for pattern in _REQUEST_FILLER_PATTERNS:
+            cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+
+        english_phrases = re.findall(
+            r"[A-Za-z0-9][A-Za-z0-9.+/_-]*(?:\s+[A-Za-z0-9][A-Za-z0-9.+/_-]*){0,3}",
+            cleaned,
+        )
+        for phrase in english_phrases:
+            cleaned_phrase = self._clean_term(phrase)
+            cleaned_phrase = re.sub(r"^(a|an|the)\s+", "", cleaned_phrase, flags=re.IGNORECASE)
+            cleaned_phrase = re.sub(
+                r"\b(flowchart|workflow|process|diagram|chart|template)\b$",
+                "",
+                cleaned_phrase,
+                flags=re.IGNORECASE,
+            ).strip()
+            if cleaned_phrase and not self._is_generic_term(cleaned_phrase):
+                candidates.append(cleaned_phrase)
+
+        segments = re.split(r"[，,。.!?；;：:\n/]+", cleaned)
+        for segment in segments:
+            segment = self._clean_term(segment)
+            if not segment or not re.search(r"[\u4e00-\u9fff]", segment):
+                continue
+            segment = segment.strip(" 的")
+            if not segment or self._is_generic_term(segment):
+                continue
+            candidates.append(segment)
+            candidates.extend(self._trim_generic_suffixes(segment))
+
+        return self._dedupe_terms(candidates)[:6]
+
+    def _build_searchable_text(self, item_data: Dict[str, Any]) -> str:
+        """Flatten template metadata into a single normalized search field."""
+        searchable_parts = [
+            item_data.get('filename', ''),
+            item_data.get('name', ''),
+            item_data.get('category', ''),
+            ' '.join(item_data.get('keywords', [])),
+            ' '.join(item_data.get('use_cases', [])),
+            ' '.join(item_data.get('sample_texts', [])[:20]),
+        ]
+
+        if 'shape_types' in item_data:
+            searchable_parts.append(' '.join(item_data.get('shape_types', [])))
+        if 'master_names' in item_data:
+            searchable_parts.append(' '.join(item_data.get('master_names', [])[:50]))
+
+        return self._normalize_search_text(' '.join(searchable_parts))
+
+    def _evaluate_must_match_groups(
+        self,
+        item_data: Dict[str, Any],
+        must_match_alias_groups: Optional[List[Dict[str, Any]]],
+    ) -> Dict[str, Any]:
+        """Evaluate whether an item satisfies all user-grounded core terms."""
+        groups = list(must_match_alias_groups or [])
+        if not groups:
+            return {
+                "passes": True,
+                "match_count": 0,
+                "coverage": 1.0,
+                "matched_sources": [],
+            }
+
+        searchable_text = self._build_searchable_text(item_data)
+        compact_searchable = self._compact_search_text(searchable_text)
+        matched_sources: List[str] = []
+
+        for group in groups:
+            aliases = self._coerce_text_list(group.get("aliases", []))
+            if not aliases:
+                continue
+
+            hit = False
+            for alias in aliases:
+                normalized_alias = self._normalize_search_text(alias)
+                compact_alias = self._compact_search_text(alias)
+                if not normalized_alias:
+                    continue
+                if normalized_alias in searchable_text or (compact_alias and compact_alias in compact_searchable):
+                    hit = True
+                    break
+
+            if hit:
+                matched_sources.append(group.get("source", ""))
+
+        total_groups = len(groups)
+        match_count = len(matched_sources)
+        return {
+            "passes": match_count == total_groups,
+            "match_count": match_count,
+            "coverage": (match_count / total_groups) if total_groups else 1.0,
+            "matched_sources": [src for src in matched_sources if src],
+        }
+
+    def _build_requirement_profile(
+        self,
+        user_input: str,
+        extracted_keywords: List[str],
+        analysis: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Separate grounded core terms from broad recall / ranking keywords."""
+        analysis = dict(analysis or {})
+
+        heuristic_grounded_terms = self._heuristic_grounded_terms(user_input)
+        grounded_terms = [
+            term
+            for term in self._coerce_text_list(analysis.get("grounded_terms")) + heuristic_grounded_terms
+            if self._term_in_user_input(term, user_input) and not self._is_generic_term(term)
+        ]
+        grounded_terms = self._dedupe_terms(
+            grounded_terms + [variant for term in grounded_terms for variant in self._trim_generic_suffixes(term)]
+        )
+
+        validated_groups: List[Dict[str, Any]] = []
+        raw_groups = analysis.get("must_match_alias_groups") or []
+        if isinstance(raw_groups, dict):
+            raw_groups = [
+                {"source": source, "aliases": aliases}
+                for source, aliases in raw_groups.items()
+            ]
+
+        for raw_group in raw_groups:
+            if not isinstance(raw_group, dict):
+                continue
+
+            source = self._clean_term(raw_group.get("source") or raw_group.get("term"))
+            if not source or self._is_generic_term(source) or not self._term_in_user_input(source, user_input):
+                continue
+
+            aliases = self._coerce_text_list(raw_group.get("aliases"))
+            aliases = self._dedupe_terms(
+                [source]
+                + self._trim_generic_suffixes(source)
+                + [alias for alias in aliases if not self._is_generic_term(alias)]
+            )
+            if aliases:
+                validated_groups.append({"source": source, "aliases": aliases})
+
+        if not validated_groups:
+            preferred_grounded_terms = [
+                term
+                for term in grounded_terms
+                if not any(term.endswith(suffix) for suffix in _GENERIC_SUFFIXES)
+            ]
+            fallback_sources = (
+                self._coerce_text_list(analysis.get("must_match_terms"))
+                or preferred_grounded_terms
+                or grounded_terms
+            )
+            for source in fallback_sources:
+                if not source or self._is_generic_term(source) or not self._term_in_user_input(source, user_input):
+                    continue
+                aliases = self._dedupe_terms([source] + self._trim_generic_suffixes(source))
+                if aliases:
+                    validated_groups.append({"source": source, "aliases": aliases})
+
+        validated_groups = validated_groups[:3]
+        must_match_terms = [group["source"] for group in validated_groups]
+        alias_terms = [alias for group in validated_groups for alias in group["aliases"]]
+
+        llm_keywords = self._coerce_text_list(analysis.get("keywords"))
+        supporting_keywords = self._coerce_text_list(analysis.get("supporting_keywords"))
+        recall_keywords = self._dedupe_terms(alias_terms + extracted_keywords + llm_keywords + supporting_keywords)
+        supporting_keywords = self._dedupe_terms(
+            [kw for kw in extracted_keywords + llm_keywords + supporting_keywords if kw not in alias_terms]
+        )
+
+        analysis["grounded_terms"] = grounded_terms
+        analysis["must_match_terms"] = must_match_terms
+        analysis["must_match_alias_groups"] = validated_groups
+        analysis["supporting_keywords"] = supporting_keywords
+
+        return {
+            "grounded_terms": grounded_terms,
+            "must_match_terms": must_match_terms,
+            "must_match_alias_groups": validated_groups,
+            "supporting_keywords": supporting_keywords,
+            "recall_keywords": recall_keywords,
+            "analysis": analysis,
+        }
     
     def extract_english_keywords(self, chinese_text: str, model: Any) -> Dict[str, Any]:
         """
@@ -384,10 +744,10 @@ class SmartMatcher:
 
             analysis = json.loads(result_text)
             
-            # Extract keywords list from keywords field
-            keywords_str = analysis.get('keywords', '')
-            keywords = [kw.strip() for kw in keywords_str.split(',')]
-            keywords = [kw for kw in keywords if kw and len(kw) > 1]
+            # ``keywords`` remains the broad recall set. Grounded / must-match
+            # terms are parsed separately downstream so generic words like
+            # ``workflow`` cannot by themselves force a recommendation.
+            keywords = self._coerce_text_list(analysis.get('keywords'))
             
             # Log extracted information
             print(f"✓ 提取的英文关键词: {', '.join(keywords)}")
@@ -417,18 +777,18 @@ class SmartMatcher:
     def _fallback_keyword_extraction(self, text: str) -> List[str]:
         """备用关键词提取（不使用LLM）"""
         keyword_map = {
-            '流程图': ['flowchart', 'process', 'workflow'],
-            '架构图': ['architecture', 'structure'],
-            '架构': ['architecture', 'structure'],
-            '组织图': ['organization', 'org chart', 'hierarchy'],
-            '组织': ['organization', 'org'],
-            '网络图': ['network', 'topology'],
+            '流程图': ['flowchart'],
+            '流程': ['process'],
+            '架构图': ['architecture diagram', 'architecture'],
+            '架构': ['architecture'],
+            '组织图': ['organization chart', 'org chart'],
+            '组织': ['organization'],
+            '网络图': ['network diagram', 'network'],
             '网络': ['network'],
-            '云': ['cloud', 'Azure', 'AWS', 'GCP'],
-            '时序图': ['sequence', 'timeline'],
+            '云': ['cloud'],
+            '时序图': ['sequence diagram', 'sequence'],
             '时序': ['sequence'],
             '数据': ['data', 'database'],
-            '用户': ['user', 'login'],
             '系统': ['system'],
             '基础设施': ['infrastructure'],
         }
@@ -437,8 +797,15 @@ class SmartMatcher:
         for chinese_key, english_terms in keyword_map.items():
             if chinese_key in text:
                 keywords.extend(english_terms)
-        
-        return list(set(keywords))[:8]
+
+        keywords.extend(self._heuristic_grounded_terms(text))
+        english_terms = re.findall(
+            r"[A-Za-z0-9][A-Za-z0-9.+/_-]*(?:\s+[A-Za-z0-9][A-Za-z0-9.+/_-]*){0,2}",
+            text,
+        )
+        keywords.extend(english_terms)
+
+        return self._dedupe_terms(keywords)[:10]
     
     def filter_by_keywords(self, keywords: List[str], 
                           search_type: str = "template",
@@ -487,7 +854,9 @@ class SmartMatcher:
                                         keyword_threshold: float = 0.2,
                                         structure_threshold: float = 0.3,
                                         keyword_weight: float = 0.4,
-                                        structure_weight: float = 0.6) -> List[Dict[str, Any]]:
+                                        structure_weight: float = 0.6,
+                                        must_match_alias_groups: Optional[List[Dict[str, Any]]] = None,
+                                        require_must_match: bool = False) -> List[Dict[str, Any]]:
         """
         通过关键词+结构综合筛选模板或形状库（步骤2增强版 - 使用精简版）
         
@@ -515,7 +884,13 @@ class SmartMatcher:
         failed_structure = 0
         failed_both = 0
         
+        must_match_alias_groups = list(must_match_alias_groups or [])
+
         for filename, item_data in library.items():
+            core_match = self._evaluate_must_match_groups(item_data, must_match_alias_groups)
+            if require_must_match and must_match_alias_groups and not core_match["passes"]:
+                continue
+
             # 1. 计算关键词分数
             keyword_score = self._calculate_keyword_score(item_data, keywords)
             
@@ -544,6 +919,9 @@ class SmartMatcher:
                     'keyword_match_score': round(keyword_score, 3),
                     'structure_match_score': round(structure_score, 3),
                     'combined_score': round(final_score, 3),
+                    'matched_core_terms': core_match['matched_sources'],
+                    'must_match_passed': core_match['passes'],
+                    'core_term_match_ratio': round(core_match['coverage'], 3),
                     **item_data
                 }
                 results.append(result)
@@ -552,6 +930,8 @@ class SmartMatcher:
         # 5. 按综合分数排序（稳定 + 字典序 tiebreaker，保证多次运行结果一致）
         results.sort(
             key=lambda x: (
+                -float(x.get('must_match_passed', False)),
+                -float(x.get('core_term_match_ratio', 0) or 0),
                 -x['combined_score'],
                 -x['structure_match_score'],
                 -x['keyword_match_score'],
@@ -575,32 +955,26 @@ class SmartMatcher:
         """计算关键词匹配分数"""
         if not keywords:
             return 0.0
-        
-        # Build searchable text from item
-        searchable_parts = [
-            item_data.get('name', ''),
-            ' '.join(item_data.get('keywords', [])),
-            ' '.join(item_data.get('use_cases', [])),
-            item_data.get('category', ''),
-        ]
-        
-        # Add shape types for templates
-        if 'shape_types' in item_data:
-            searchable_parts.append(' '.join(item_data.get('shape_types', [])))
-        
-        # Add master names for stencils
-        if 'master_names' in item_data:
-            searchable_parts.append(' '.join(item_data.get('master_names', [])[:50]))
-        
-        searchable_text = ' '.join(searchable_parts).lower()
-        
-        # Calculate match score
-        matches = 0
+
+        searchable_text = self._build_searchable_text(item_data)
+        compact_searchable = self._compact_search_text(searchable_text)
+
+        # Generic words remain useful for broad recall, but they should not
+        # dominate scoring over user-grounded business / domain terms.
+        weighted_matches = 0.0
+        total_weight = 0.0
         for keyword in keywords:
-            if keyword.lower() in searchable_text:
-                matches += 1
-        
-        return matches / len(keywords) if keywords else 0.0
+            normalized_keyword = self._normalize_search_text(keyword)
+            compact_keyword = self._compact_search_text(keyword)
+            if not normalized_keyword:
+                continue
+
+            weight = 0.35 if self._is_generic_term(normalized_keyword) else 1.0
+            total_weight += weight
+            if normalized_keyword in searchable_text or (compact_keyword and compact_keyword in compact_searchable):
+                weighted_matches += weight
+
+        return (weighted_matches / total_weight) if total_weight else 0.0
     
     def _topology_similarity(self, user_topology: str, template_topology: Dict[str, Any]) -> float:
         """
@@ -850,7 +1224,8 @@ class SmartMatcher:
                          model: Any,
                          top_k: int = 5,
                          search_type: str = "template",
-                         confidence_score: float = 0.5) -> Dict[str, Any]:
+                         confidence_score: float = 0.5,
+                         requirement_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         使用大模型对候选项进行评估和排序（步骤3 - 使用完整版详细信息）
         
@@ -913,6 +1288,10 @@ class SmartMatcher:
         prompt = prompt.replace('{candidates_text}', candidates_text)
         prompt = prompt.replace('{top_k}', str(top_k))
         
+        core_term_text = self._format_core_term_constraints(requirement_profile or {})
+        if core_term_text:
+            prompt += f"\n\n## 用户原话核心词门禁\n\n{core_term_text}"
+
         # 如果有评分策略说明，添加到prompt中
         if scoring_strategy:
             prompt += f"\n\n## 评分权重策略\n\n{scoring_strategy}"
@@ -1186,6 +1565,14 @@ class SmartMatcher:
         # 架构模式
         architecture = analysis.get('architecture_pattern', '未知')
         lines.append(f"- **架构模式**: {architecture}")
+
+        grounded_terms = self._coerce_text_list(analysis.get('grounded_terms'))
+        if grounded_terms:
+            lines.append(f"- **用户原话核实词**: {'、'.join(grounded_terms[:5])}")
+
+        must_match_terms = self._coerce_text_list(analysis.get('must_match_terms'))
+        if must_match_terms:
+            lines.append(f"- **必须命中的核心词**: {'、'.join(must_match_terms[:5])}")
         
         # 具体要求
         requirements = analysis.get('specific_requirements', [])
@@ -1194,6 +1581,25 @@ class SmartMatcher:
             lines.append(f"- **具体要求**: {req_text}")
         
         return '\n'.join(lines)
+
+    def _format_core_term_constraints(self, requirement_profile: Dict[str, Any]) -> str:
+        """Format grounded core-term gates for the evaluation prompt."""
+        groups = list((requirement_profile or {}).get("must_match_alias_groups") or [])
+        if not groups:
+            return ""
+
+        lines = [
+            "以下核心词来自用户原话，属于硬门禁。",
+            "只有命中这些核心词（或对应别名）的候选，才可以进入正式推荐。",
+            "像 flowchart / process / workflow / architecture 这类泛词只能辅助排序，不能单独支撑入选。",
+        ]
+        for group in groups:
+            source = group.get("source", "")
+            aliases = self._coerce_text_list(group.get("aliases"))
+            if not source or not aliases:
+                continue
+            lines.append(f"- `{source}` -> {', '.join(aliases)}")
+        return "\n".join(lines)
     
     def _get_scoring_strategy(self, confidence_score: float) -> str:
         """根据置信度返回评分权重策略说明"""
@@ -1364,7 +1770,9 @@ class SmartMatcher:
                         keywords: List[str],
                         analysis: Dict[str, Any],
                         search_type: str,
-                        confidence_score: float) -> tuple:
+                        confidence_score: float,
+                        must_match_alias_groups: Optional[List[Dict[str, Any]]] = None,
+                        require_must_match: bool = False) -> tuple:
         """
         步骤 2 自适应筛选：逐渐提升阈值等级，确保候选数 ∈ [1, 10]。
         
@@ -1390,6 +1798,8 @@ class SmartMatcher:
                 search_type=search_type,
                 keyword_threshold=kt,
                 structure_threshold=st,
+                must_match_alias_groups=must_match_alias_groups,
+                require_must_match=require_must_match,
             )
             trace.append({"level": level, "kt": kt, "st": st, "count": len(cands)})
             return cands
@@ -1489,6 +1899,70 @@ class SmartMatcher:
             lines.append("")
         
         return '\n'.join(lines)
+
+    def keyword_only_match(
+        self,
+        user_input: str,
+        search_type: str = "template",
+        top_k: int = 5,
+        reason: Optional[str] = None,
+        error_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Deterministic fallback recommendation without any LLM calls."""
+        extracted_keywords = self._fallback_keyword_extraction(user_input)
+        requirement_profile = self._build_requirement_profile(
+            user_input,
+            extracted_keywords,
+            analysis={},
+        )
+        analysis = requirement_profile["analysis"]
+        keywords = requirement_profile["recall_keywords"]
+        must_match_alias_groups = requirement_profile["must_match_alias_groups"]
+
+        complexity_assessment = self._assess_input_complexity(user_input, analysis)
+        confidence_score = complexity_assessment['confidence_score']
+        warnings = [reason] if reason else []
+
+        strict_candidates, _ = self.adaptive_filter(
+            keywords=keywords,
+            analysis=analysis,
+            search_type=search_type,
+            confidence_score=confidence_score,
+            must_match_alias_groups=must_match_alias_groups,
+            require_must_match=bool(must_match_alias_groups),
+        )
+
+        alternatives: List[Dict[str, Any]] = []
+        final_results = strict_candidates[:top_k]
+
+        if must_match_alias_groups and not final_results:
+            warnings.append(
+                "No candidate satisfied all user-grounded core terms; strict recommendations were withheld."
+            )
+            relaxed_candidates, _ = self.adaptive_filter(
+                keywords=keywords,
+                analysis=analysis,
+                search_type=search_type,
+                confidence_score=confidence_score,
+                must_match_alias_groups=must_match_alias_groups,
+                require_must_match=False,
+            )
+            alternatives = relaxed_candidates[:top_k]
+
+        return self._format_chinese_output(
+            user_input,
+            keywords,
+            final_results,
+            search_type,
+            complexity_assessment,
+            analysis,
+            warnings=warnings,
+            fallback_used=True,
+            error_code=error_code,
+            grounded_terms=requirement_profile["grounded_terms"],
+            must_match_terms=requirement_profile["must_match_terms"],
+            alternatives=alternatives,
+        )
     
     def smart_match(self, user_input: str, model: Any,
                    search_type: str = "template",
@@ -1527,8 +2001,18 @@ class SmartMatcher:
         # Step 1: Extract English keywords and requirement analysis from input
         print("\n📝 步骤 1: 提取英文关键词和需求分析...")
         extraction_result = self.extract_english_keywords(user_input, model)
-        keywords = extraction_result['keywords']
-        analysis = extraction_result['analysis']
+        requirement_profile = self._build_requirement_profile(
+            user_input,
+            extraction_result['keywords'],
+            extraction_result['analysis'],
+        )
+        keywords = requirement_profile['recall_keywords']
+        analysis = requirement_profile['analysis']
+        must_match_alias_groups = requirement_profile['must_match_alias_groups']
+        if requirement_profile['grounded_terms']:
+            print(f"✓ 用户原话核实词: {', '.join(requirement_profile['grounded_terms'])}")
+        if requirement_profile['must_match_terms']:
+            print(f"✓ 核心词门禁: {', '.join(requirement_profile['must_match_terms'])}")
         
         if not keywords:
             print("⚠ 警告: 未能提取关键词，使用备用方案")
@@ -1554,8 +2038,26 @@ class SmartMatcher:
             analysis=analysis,
             search_type=search_type,
             confidence_score=confidence_score,
+            must_match_alias_groups=must_match_alias_groups,
+            require_must_match=bool(must_match_alias_groups),
         )
         print(f"✓ 自适应筛选完成: 最终 {len(candidates)} 个候选 (阶梯轨迹: {ladder_trace})")
+
+        alternatives: List[Dict[str, Any]] = []
+        if must_match_alias_groups and not candidates:
+            warnings.append(
+                "No candidate satisfied all user-grounded core terms; formal recommendations were withheld."
+            )
+            relaxed_candidates, relaxed_trace = self.adaptive_filter(
+                keywords=keywords,
+                analysis=analysis,
+                search_type=search_type,
+                confidence_score=confidence_score,
+                must_match_alias_groups=must_match_alias_groups,
+                require_must_match=False,
+            )
+            print(f"✓ 放宽后备选候选数: {len(relaxed_candidates)} 个 (阶梯轨迹: {relaxed_trace})")
+            alternatives = relaxed_candidates[:top_k]
 
         if not candidates:
             warnings.append(
@@ -1576,7 +2078,8 @@ class SmartMatcher:
                 model,
                 top_k=top_k,
                 search_type=search_type,
-                confidence_score=confidence_score  # Pass confidence score for dynamic scoring
+                confidence_score=confidence_score,  # Pass confidence score for dynamic scoring
+                requirement_profile=requirement_profile,
             )
             final_results = llm_eval["results"]
             warnings.extend(llm_eval.get("warnings", []))
@@ -1598,6 +2101,9 @@ class SmartMatcher:
             warnings=warnings,
             fallback_used=fallback_used,
             error_code=error_code,
+            grounded_terms=requirement_profile["grounded_terms"],
+            must_match_terms=requirement_profile["must_match_terms"],
+            alternatives=alternatives,
         )
         
         print(f"\n{'='*60}")
@@ -1634,7 +2140,10 @@ class SmartMatcher:
                               analysis: Optional[Dict[str, Any]] = None,
                               warnings: Optional[List[str]] = None,
                               fallback_used: bool = False,
-                              error_code: Optional[str] = None) -> Dict[str, Any]:
+                              error_code: Optional[str] = None,
+                              grounded_terms: Optional[List[str]] = None,
+                              must_match_terms: Optional[List[str]] = None,
+                              alternatives: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """格式化中文输出（极简版，最小化token占用）"""
         print(f"\n{'='*60}")
         print(f"📝 步骤 4: 格式化中文输出")
@@ -1652,6 +2161,9 @@ class SmartMatcher:
         
         type_name = "模板" if search_type == "template" else "形状库"
         warnings = list(warnings or [])
+        grounded_terms = self._coerce_text_list(grounded_terms)
+        must_match_terms = self._coerce_text_list(must_match_terms)
+        alternatives = list(alternatives or [])
         
         output = {
             "status": "ok",
@@ -1660,16 +2172,19 @@ class SmartMatcher:
             "keywords": keywords,
             "analysis": analysis or {},
             "complexity_assessment": complexity_assessment or {},
+            "grounded_terms": grounded_terms,
+            "must_match_terms": must_match_terms,
             "recommendations": [],
+            "alternatives": [],
             "warnings": warnings,
             "fallback_used": fallback_used,
             "error_code": error_code,
             "搜索类型": type_name,
-            "推荐列表": []
+            "推荐列表": [],
+            "备选列表": [],
         }
         
-        # 格式化推荐列表（仅保留核心字段）
-        for i, item in enumerate(results, 1):
+        def build_compact_entry(item: Dict[str, Any], rank: int) -> Dict[str, Any]:
             # 获取或构建完整路径
             template_path = item.get('template_path', item.get('path', item.get('full_path', '')))
             if not template_path:
@@ -1692,21 +2207,34 @@ class SmartMatcher:
                 item.get('llm_score', item.get('combined_score', 0)),
             )
             recommendation = {
-                "rank": i,
+                "rank": rank,
                 "filename": item.get('filename', ''),
                 "path": template_path,
                 "score": round(float(score_value or 0), 1),
                 "description": item.get('structure_description', ''),
             }
+            matched_core_terms = self._coerce_text_list(item.get("matched_core_terms"))
+            if matched_core_terms:
+                recommendation["matched_core_terms"] = matched_core_terms
             
             # 添加预览URL（模板）或形状数（形状库）
             if search_type == "template":
                 # 使用Markdown链接格式避免URL因空格被拆分
                 filename = os.path.basename(template_path)
                 recommendation["preview"] = f"[{filename}](http://localhost:7777/api/visio/preview?path={template_path})"
-            
+
+            return recommendation
+
+        # 格式化推荐列表（仅保留核心字段）
+        for i, item in enumerate(results, 1):
+            recommendation = build_compact_entry(item, i)
             output["recommendations"].append(recommendation)
             output["推荐列表"].append(recommendation)
+
+        for i, item in enumerate(alternatives, 1):
+            alternative = build_compact_entry(item, i)
+            output["alternatives"].append(alternative)
+            output["备选列表"].append(alternative)
         
         if error_code and not output["recommendations"]:
             output["status"] = "error"

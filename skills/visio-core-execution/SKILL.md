@@ -71,6 +71,10 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 - 形状 / 连接器一律走 `upsert_shape` / `upsert_connector`；同 key 反复调用不会重复。
 - 几何 / 样式改动一律用 `edit_shape(shape_id, patch)`。
 - 删除形状用 `remove_shape`（带智能重连），不要绕过它手动接边。
+- 删除模板残留或局部改坏的旧形状后，默认假设仍可能存在引用已删除
+  `Sheet.<id>` 的连接器；要依赖删除后的连接线清理，并在汇报时明确写出
+  "相关连接线已清理"、"已列出残留连接线" 或 "已执行 orphan 检查"，不要只说
+  "形状已删除"。
 
 **模板骨架复用纪律（Workflow E 强制）**：
 - 使用模板时，**绝不在执行 edit_shape / remove_shape 清理旧形状之前调用 upsert_shape**。
@@ -136,7 +140,7 @@ C) 插入形状库中的形状
 D) 删除节点并保留上下游流向
   1) `remove_shape`
   2) `save_document` + `open_document`
-  3) `analyze_template` (核对 connections)
+  3) `analyze_template` (核对 connections；若是模板清理场景，明确确认连接线清理结果)
 
 E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）**
   1) `recommend_template` → 等用户确认或直接取第一条
@@ -148,7 +152,8 @@ E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）
      `edit_shape(shape_id, {"text": "目标文字", "node_key": "stable_key"})`
      — 在此步骤中同时完成文本替换和 key 绑定，坐标由模板继承，无需手动填写 (x, y)
   7) 对每个多余的模板形状：`remove_shape(shape_id)`
-     — 若 remove_shape 返回 `IS_CONNECTOR`，说明该 ID 是连接线，跳过即可
+     — 若 remove_shape 返回 `IS_CONNECTOR`，说明该 ID 是连接线，跳过即可；
+       对用户汇报时必须同时说明相关连接线已清理，或说明已做 orphan 检查
   8) 仅当步骤 5 确认模板中**没有**对应角色时：
      `upsert_shape(node_key, text, type, x, y)`
   9) `upsert_connector(from_node_key, to_node_key, label?, from_port?, to_port?)`

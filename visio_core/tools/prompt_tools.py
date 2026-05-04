@@ -163,40 +163,20 @@ class PromptTools:
         reason: str,
         error_code: Optional[str],
     ) -> Dict[str, Any]:
-        keywords = self._extract_keywords(user_requirement)
-        warnings = [reason]
-
-        if search_type == "template":
-            results = self.template_manager.search_templates(keywords=keywords)
-            if not results:
-                results = [
-                    {"filename": filename, **info}
-                    for filename, info in self.template_manager.library.items()
-                ]
-            if not results:
-                warnings.append("Template library is empty.")
-                error_code = error_code or "LIBRARY_EMPTY"
-        else:
-            from ..templates.stencil_manager import StencilManager
-
-            stencil_manager = StencilManager()
-            results = stencil_manager.search_stencils(keywords=keywords)
-            if not results:
-                warnings.append("No stencil candidates matched the fallback search.")
-
-        recommendations = self._build_basic_recommendations(results, search_type, top_k)
-        if not recommendations and error_code is None:
-            error_code = "LIBRARY_EMPTY" if search_type == "template" else None
-
-        return self._build_recommendation_payload(
-            user_requirement=user_requirement,
+        fallback = self.smart_matcher.keyword_only_match(
+            user_input=user_requirement,
             search_type=search_type,
-            keywords=keywords,
-            recommendations=recommendations,
-            warnings=warnings,
-            fallback_used=True,
+            top_k=top_k,
+            reason=reason,
             error_code=error_code,
         )
+        if search_type == "template" and not fallback.get("recommendations"):
+            template_count = len(getattr(self.template_manager, "library", {}) or {})
+            if template_count == 0:
+                fallback.setdefault("warnings", []).append("Template library is empty.")
+                fallback["error_code"] = fallback.get("error_code") or "LIBRARY_EMPTY"
+                fallback["status"] = "error"
+        return fallback
 
     def _tool_call_status(self, result: str) -> Dict[str, Any]:
         message = result or ""

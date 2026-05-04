@@ -25,6 +25,10 @@ description: Generate an executable Visio Prompt strictly using the 15 public to
 - 首选 `recommend_template(user_requirement, top_k=5)`：LLM 语义排序。
 - 次选 `search_templates(keywords=[...])`：关键词确定时更快。
 - 严禁用 `search_templates()` 空查询当"模板发现"——仅当用户要求"列出所有模板"时使用。
+- 对 `recommend_template` 的结果，优先相信其中基于**用户原话核心词**通过门禁后的正式推荐；
+- 若工具返回 `must_match_terms` 但 `recommendations` 为空，只出现 `alternatives` / `备选列表`，说明模板库里没有命中用户真实场景的模板：
+  - 不要把这些备选项包装成“最佳推荐”；
+  - 应明确告诉用户“目前没有严格命中核心词的模板”，必要时再请用户确认是否接受近似模板。
 - 向用户展示每个候选时，务必包括：
   * 模板完整路径（必须是 `assets/templates/library/...` 下的真实路径）；
   * 综合评分与各维度评分；
@@ -69,6 +73,8 @@ edit_shape("<id-from-analysis>", patch={"text": "信息是否通过验证？","n
 
 # Step 4: 删除多余的模板形状
 # 若 remove_shape 返回 IS_CONNECTOR，说明是连接线，直接跳过
+# 删除模板形状后，不要把“shape 已删除”当成连接线已经干净的同义词；
+# 交付说明里必须明确写出相关连接器已清理，或说明已做 orphan 检查
 remove_shape("<extra-shape-id>")
 
 # Step 5: 仅为在模板中确认缺席的角色添加新形状
@@ -126,6 +132,7 @@ render_page(page=0, scale=2.0, mode="url")  # 默认 url 模式，PNG 与 /api/v
 - `upsert_connector` 的每个端点必须在同一 Prompt 中被 `edit_shape(patch.node_key)` 或 `upsert_shape` 赋予过 node_key；
 - 不得把裸 `shape_id`（如 "254"）直接传给 `upsert_connector`；
 - 生成的 Prompt 形状总数不得超过模板原有形状数 + 新增必要角色数（防止重复堆叠）。
+- 任何模板清理 / `remove_shape` 场景都要把 connector cleanup 写进说明：默认假设旧连接线可能仍引用已删除 `Sheet.<id>`，直到清理或 orphan 检查明确确认。
 
 ## 步骤 6：交付
 - 完整的可执行 Prompt 放在独立 Markdown 代码块中；

@@ -34,8 +34,8 @@ class EdgeType(Enum):
 class EdgeMetadata:
     """Complete edge metadata container"""
     edge_id: str
-    source_id: str
-    target_id: str
+    source_id: Optional[str] = None
+    target_id: Optional[str] = None
     direction: EdgeDirection = EdgeDirection.UNIDIRECTIONAL
     edge_type: EdgeType = EdgeType.DATA_FLOW
     label: str = ""
@@ -43,6 +43,8 @@ class EdgeMetadata:
     data_attributes: Dict[str, Any] = field(default_factory=dict)
     routing_points: List[Tuple[float, float]] = field(default_factory=list)
     z_order: int = 0
+    referenced_shape_ids: Set[str] = field(default_factory=set)
+    has_complete_endpoints: bool = False
     
 
 @dataclass 
@@ -98,18 +100,20 @@ class EdgeCentricManager:
                     inventory.edges[edge_meta.edge_id] = edge_meta
                     
                     # Update index mappings
-                    for shape_id in [edge_meta.source_id, edge_meta.target_id]:
+                    for shape_id in edge_meta.referenced_shape_ids:
                         if shape_id not in inventory.shape_to_edges:
                             inventory.shape_to_edges[shape_id] = set()
                         inventory.shape_to_edges[shape_id].add(edge_meta.edge_id)
                     
-                    if edge_meta.source_id not in inventory.source_to_edges:
-                        inventory.source_to_edges[edge_meta.source_id] = set()
-                    inventory.source_to_edges[edge_meta.source_id].add(edge_meta.edge_id)
+                    if edge_meta.source_id:
+                        if edge_meta.source_id not in inventory.source_to_edges:
+                            inventory.source_to_edges[edge_meta.source_id] = set()
+                        inventory.source_to_edges[edge_meta.source_id].add(edge_meta.edge_id)
                     
-                    if edge_meta.target_id not in inventory.target_to_edges:
-                        inventory.target_to_edges[edge_meta.target_id] = set()
-                    inventory.target_to_edges[edge_meta.target_id].add(edge_meta.edge_id)
+                    if edge_meta.target_id:
+                        if edge_meta.target_id not in inventory.target_to_edges:
+                            inventory.target_to_edges[edge_meta.target_id] = set()
+                        inventory.target_to_edges[edge_meta.target_id].add(edge_meta.edge_id)
                     
             except Exception as e:
                 logger.warning(f"Failed to extract edge metadata: {e}")
@@ -130,16 +134,23 @@ class EdgeCentricManager:
         try:
             edge_id = str(connector.ID)
             
-            # Extract connection endpoints
-            endpoints = self._get_connector_endpoints(connector)
-            if not endpoints['source'] or not endpoints['target']:
+            reference_summary = self.diagram_builder.get_connector_reference_summary(connector)
+            if (
+                not reference_summary['source']
+                and not reference_summary['target']
+                and not reference_summary['referenced_shape_ids']
+            ):
                 return None
                 
             # Create base metadata
             edge_meta = EdgeMetadata(
                 edge_id=edge_id,
-                source_id=endpoints['source'],
-                target_id=endpoints['target']
+                source_id=reference_summary['source'],
+                target_id=reference_summary['target'],
+                referenced_shape_ids=set(reference_summary['referenced_shape_ids']),
+                has_complete_endpoints=bool(
+                    reference_summary['source'] and reference_summary['target']
+                ),
             )
             
             # Extract label
@@ -165,21 +176,7 @@ class EdgeCentricManager:
             
     def _get_connector_endpoints(self, connector) -> Dict[str, Optional[str]]:
         """Extract source and target shape IDs from connector."""
-        endpoints = {'source': None, 'target': None}
-        
-        if hasattr(connector, 'connects') and connector.connects:
-            for conn in connector.connects:
-                shape_id = getattr(conn, 'shape_id', None)
-                from_rel = getattr(conn, 'from_rel', '')
-                
-                if shape_id:
-                    shape_id = str(shape_id)
-                    if 'BeginX' in from_rel or 'Begin' in from_rel:
-                        endpoints['source'] = shape_id
-                    elif 'EndX' in from_rel or 'End' in from_rel:
-                        endpoints['target'] = shape_id
-                        
-        return endpoints
+        return self.diagram_builder._get_connector_endpoints(connector)
         
     def _extract_style_properties(self, connector) -> Dict[str, Any]:
         """Extract visual style properties from connector."""
@@ -253,23 +250,44 @@ class EdgeCentricManager:
         
         # Check for orphaned edges
         for edge_id, edge_meta in inventory.edges.items():
+            reported_missing: Set[str] = set()
+
+            if not edge_meta.has_complete_endpoints:
+                self._validation_errors.append(
+                    f"Edge {edge_id}: Connector has incomplete endpoints"
+                )
+
             # Verify source exists
-            source_shape = self.diagram_builder.get_shape_by_id(edge_meta.source_id)
-            if not source_shape:
-                self._validation_errors.append(
-                    f"Edge {edge_id}: Source shape {edge_meta.source_id} not found"
-                )
+            if edge_meta.source_id:
+                source_shape = self.diagram_builder.get_shape_by_id(edge_meta.source_id)
+                if not source_shape:
+                    reported_missing.add(edge_meta.source_id)
+                    self._validation_errors.append(
+                        f"Edge {edge_id}: Source shape {edge_meta.source_id} not found"
+                    )
                 
-            # Verify target exists  
-            target_shape = self.diagram_builder.get_shape_by_id(edge_meta.target_id)
-            if not target_shape:
-                self._validation_errors.append(
-                    f"Edge {edge_id}: Target shape {edge_meta.target_id} not found"
-                )
+            # Verify target exists
+            if edge_meta.target_id:
+                target_shape = self.diagram_builder.get_shape_by_id(edge_meta.target_id)
+                if not target_shape:
+                    reported_missing.add(edge_meta.target_id)
+                    self._validation_errors.append(
+                        f"Edge {edge_id}: Target shape {edge_meta.target_id} not found"
+                    )
+
+            for referenced_shape_id in sorted(edge_meta.referenced_shape_ids):
+                if referenced_shape_id in reported_missing:
+                    continue
+                if not self.diagram_builder.get_shape_by_id(referenced_shape_id):
+                    self._validation_errors.append(
+                        f"Edge {edge_id}: References missing shape {referenced_shape_id}"
+                    )
                 
         # Check for duplicate edges
         edge_pairs = {}
         for edge_id, edge_meta in inventory.edges.items():
+            if not edge_meta.has_complete_endpoints:
+                continue
             pair_key = f"{edge_meta.source_id}->{edge_meta.target_id}"
             if pair_key in edge_pairs:
                 self._validation_errors.append(
@@ -280,6 +298,8 @@ class EdgeCentricManager:
                 
         # Check for self-loops (if not allowed)
         for edge_id, edge_meta in inventory.edges.items():
+            if not edge_meta.has_complete_endpoints:
+                continue
             if edge_meta.source_id == edge_meta.target_id:
                 self._validation_errors.append(
                     f"Self-loop detected: Edge {edge_id} connects shape to itself"
@@ -321,7 +341,7 @@ class EdgeCentricManager:
             
             for edge_id in connected_edge_ids:
                 edge_meta = inventory.edges.get(edge_id)
-                if not edge_meta:
+                if not edge_meta or not edge_meta.has_complete_endpoints:
                     continue
                     
                 if edge_meta.target_id == shape_id:
@@ -342,13 +362,23 @@ class EdgeCentricManager:
                         self._create_bypass_edge(in_edge, out_edge, results)
                         
             # Remove original edges
+            removed_edge_ids = set()
             for edge_meta in incoming_edges + outgoing_edges:
+                if edge_meta.edge_id in removed_edge_ids:
+                    continue
                 if self._remove_edge(edge_meta.edge_id):
                     results['edges_removed'].append(edge_meta.edge_id)
+                    removed_edge_ids.add(edge_meta.edge_id)
+
+            # Remove any remaining edge that still references the deleted shape,
+            # including half-connected or formula-only connectors.
+            for edge_id in sorted(connected_edge_ids - removed_edge_ids):
+                if self._remove_edge(edge_id):
+                    results['edges_removed'].append(edge_id)
                     
         elif reconnect_strategy == 'remove':
             # Simply remove all connected edges
-            for edge_id in connected_edge_ids:
+            for edge_id in sorted(connected_edge_ids):
                 if self._remove_edge(edge_id):
                     results['edges_removed'].append(edge_id)
                     
@@ -442,7 +472,7 @@ class EdgeCentricManager:
             inventory = self.build_edge_inventory()
             edge_meta = inventory.edges.get(between_edge_id)
             
-            if edge_meta:
+            if edge_meta and edge_meta.has_complete_endpoints:
                 try:
                     # Create two new edges: source->new and new->target
                     edge1_id = self.diagram_builder.connect_shapes(
@@ -473,6 +503,10 @@ class EdgeCentricManager:
                         
                 except Exception as e:
                     results['errors'].append(f"Failed to split edge: {e}")
+            elif edge_meta:
+                results['errors'].append(
+                    f"Edge {between_edge_id} has incomplete endpoints and cannot be split"
+                )
                     
         return results
         
