@@ -1,7 +1,7 @@
 """
 MCP server scaffold (stdio transport; sse deferred).
 
-- This module exposes the consolidated 15-tool surface through the MCP
+- This module exposes the consolidated 16-tool surface through the MCP
   contract. Agno remains the top-level runtime shell — ``apps/agent_os.py``
   owns the HTTP and preview surface.
 - The scaffold is self-contained: if the ``mcp`` SDK is installed,

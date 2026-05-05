@@ -97,6 +97,26 @@ def _sha1(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
+def _stat_mtime_ns(stat_result: os.stat_result) -> int:
+    return int(
+        getattr(
+            stat_result,
+            "st_mtime_ns",
+            int(float(stat_result.st_mtime) * 1_000_000_000),
+        )
+    )
+
+
+def _source_version_parts(src: Path) -> Tuple[int, int]:
+    stat_result = src.stat()
+    return _stat_mtime_ns(stat_result), int(stat_result.st_size)
+
+
+def _source_revision(src: Path) -> str:
+    mtime_ns, size = _source_version_parts(src)
+    return f"{mtime_ns}-{size}"
+
+
 def _cache_root() -> Path:
     root = Path(tempfile.gettempdir()) / "visio_renders"
     root.mkdir(parents=True, exist_ok=True)
@@ -542,14 +562,14 @@ def render_vsdx_page_to_png(
         )
 
     cache = _cache_root()
-    mtime = int(src.stat().st_mtime)
+    source_revision = _source_revision(src)
 
     backends_attempted: List[str] = []
     failures: List[str] = []
     last_blank_path: Optional[Path] = None
 
     for backend in _backend_order():
-        cache_key = _sha1(f"{src}|{mtime}|{page}|{dpi}|{backend}")
+        cache_key = _sha1(f"{src}|{source_revision}|{page}|{dpi}|{backend}")
         cached = cache / f"{cache_key}.png"
 
         if cached.exists() and cached.stat().st_size > 0 and not _is_blank_png(cached):
@@ -673,17 +693,18 @@ def render_vsdx_page_to_data_uri(
 #
 # This is wasteful: zoom and view-mode are purely client-side concerns. We
 # render once at a fixed high-quality DPI, persist the PNG under
-# ``outputs/Preview_pngs/<sha1(path|page)>.png`` and reuse it for every
-# subsequent request for that (path, page) pair.
+# ``outputs/Preview_pngs/<sha1(path|page|source_revision)>.png`` and reuse it
+# for every subsequent request for that exact document revision.
 #
 # The cache key intentionally excludes ``scale`` and the client's view mode
 # (fit_window vs. actual_size). This lets the UI scale the cached PNG via
 # CSS while *preserving* the user's chosen mode — moving the zoom slider no
 # longer forces a switch to actual_size, and no extra render hits the disk.
 #
-# Cache invalidation: if the source .vsdx file's mtime is newer than the
-# cached PNG's mtime, we re-render and overwrite the cache file. The
-# ``force`` flag lets callers bypass the cache explicitly.
+# Cache invalidation: each save produces a new revision token based on the
+# source file's nanosecond mtime + size, so rapid consecutive edits get a new
+# preview filename and a new URL. The ``force`` flag still lets callers bypass
+# the cache explicitly for same-revision refreshes.
 
 # Render scale used for the cached preview image. 2.0 ≈ 192 DPI — a good
 # balance between fidelity and file size for browser zoom up to ~3x.
@@ -697,11 +718,8 @@ def _preview_cache_dir() -> Path:
     return preview_dir
 
 
-def _preview_cache_key(src: Path, page: int) -> str:
-    # mtime is intentionally NOT part of the key — the file's own mtime acts
-    # as the freshness marker (see render_and_cache_preview). This keeps the
-    # filename stable across edits so the browser can cache the URL.
-    return _sha1(f"{src}|{page}")
+def _preview_cache_key(src: Path, page: int, source_revision: str) -> str:
+    return _sha1(f"{src}|{page}|{source_revision}")
 
 
 def render_and_cache_preview(
@@ -713,10 +731,10 @@ def render_and_cache_preview(
 ) -> dict:
     """Render a VSDX page once and cache the PNG under ``outputs/Preview_pngs``.
 
-    Subsequent calls for the same ``(vsdx_path, page)`` reuse the cached PNG
-    without re-rendering, regardless of the requested ``scale`` (zoom and
-    fit/actual mode are handled by the client). The cache is invalidated
-    automatically when the source file is modified (compared via mtime).
+    Subsequent calls for the same ``(vsdx_path, page, source_revision)`` reuse
+    the cached PNG without re-rendering, regardless of the requested
+    ``scale`` (zoom and fit/actual mode are handled by the client). The cache
+    key changes automatically when the source file is modified.
 
     Args:
         vsdx_path: Path to the .vsdx file (must be under an allowed root).
@@ -729,9 +747,11 @@ def render_and_cache_preview(
     Returns:
         dict with keys:
             - ``file``    : absolute path to the cached PNG
-            - ``key``     : stable cache key (sha1 of path|page)
+            - ``key``     : revisioned cache key (sha1 of path|page|source_revision)
+            - ``revision``: source revision token (mtime_ns-size)
             - ``mtime``   : integer mtime of the cached PNG
             - ``src_mtime``: integer mtime of the source VSDX
+            - ``src_mtime_ns``: nanosecond mtime of the source VSDX
             - ``cached``  : True if served from cache, False if (re)rendered
             - ``bytes``   : raw PNG bytes (read once, returned for convenience)
     """
@@ -749,31 +769,29 @@ def render_and_cache_preview(
         )
 
     preview_dir = _preview_cache_dir()
-    key = _preview_cache_key(src, page)
+    src_mtime_ns, src_size = _source_version_parts(src)
+    revision = f"{src_mtime_ns}-{src_size}"
+    key = _preview_cache_key(src, page, revision)
     out_file = preview_dir / f"{key}.png"
 
-    src_mtime = int(src.stat().st_mtime)
+    src_mtime = int(src_mtime_ns // 1_000_000_000)
 
     if not force and out_file.exists() and out_file.stat().st_size > 0:
         cached_mtime = int(out_file.stat().st_mtime)
-        if cached_mtime >= src_mtime:
-            logger.debug(
-                "render_and_cache_preview: cache hit for %s page %d (%s)",
-                src.name, page, out_file.name,
-            )
-            return {
-                "file": str(out_file),
-                "key": key,
-                "mtime": cached_mtime,
-                "src_mtime": src_mtime,
-                "cached": True,
-                "bytes": out_file.read_bytes(),
-            }
-        logger.info(
-            "render_and_cache_preview: source %s changed (mtime %d > %d); "
-            "invalidating cached preview.",
-            src.name, src_mtime, cached_mtime,
+        logger.debug(
+            "render_and_cache_preview: cache hit for %s page %d (%s, rev=%s)",
+            src.name, page, out_file.name, revision,
         )
+        return {
+            "file": str(out_file),
+            "key": key,
+            "revision": revision,
+            "mtime": cached_mtime,
+            "src_mtime": src_mtime,
+            "src_mtime_ns": src_mtime_ns,
+            "cached": True,
+            "bytes": out_file.read_bytes(),
+        }
 
     render_scale = scale if scale is not None else _PREVIEW_RENDER_SCALE
     try:
@@ -803,8 +821,10 @@ def render_and_cache_preview(
     return {
         "file": str(out_file),
         "key": key,
+        "revision": revision,
         "mtime": int(out_file.stat().st_mtime),
         "src_mtime": src_mtime,
+        "src_mtime_ns": src_mtime_ns,
         "cached": False,
         "bytes": png_bytes,
     }

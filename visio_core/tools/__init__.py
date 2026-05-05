@@ -1,6 +1,6 @@
 """Tools for Visio diagram manipulation (pure library layer).
 
-Primary export is the consolidated 15-tool surface (see ``consolidated.py``),
+Primary export is the consolidated 16-tool surface (see ``consolidated.py``),
 adapted and exposed by :mod:`visio_mcp` and :mod:`apps.visio_agent`.
 """
 from .visio_tools import VisioTools

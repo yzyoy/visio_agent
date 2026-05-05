@@ -15,6 +15,7 @@ from ..utils.layout_config import normalize_shape_type
 from ..utils.visio_render import render_vsdx_page_to_data_uri, render_and_save_png
 from ..utils.shape_identity import get_shape_prop
 from ..utils.stencil_parser import StencilParser
+from ..utils.text_normalization import normalize_shape_text
 from ..context.session_context import DialogContextStore, SessionContext, DisabledDialogContextStore
 
 
@@ -459,13 +460,20 @@ class VisioTools:
         err = self._ensure_loaded_or_error("✗ No diagram loaded. Use load_diagram first.")
         if err:
             return err
-        
-        success = self.diagram_builder.update_shape_text(shape_id, new_text)
+
+        normalized_text, normalized_changed = normalize_shape_text(new_text)
+        success = self.diagram_builder.update_shape_text(shape_id, normalized_text)
         if success:
-            result = f"✓ Updated shape {shape_id}: '{new_text}'"
+            result = f"✓ Updated shape {shape_id}: '{normalized_text}'"
+            if normalized_changed:
+                result += " (normalized embedded line breaks)"
             log_operation(
                 operation="update_shape_text",
-                details={"shape_id": shape_id, "new_text": new_text},
+                details={
+                    "shape_id": shape_id,
+                    "new_text": normalized_text,
+                    "normalized_line_breaks": normalized_changed,
+                },
                 result=result,
                 success=True
             )
@@ -475,8 +483,12 @@ class VisioTools:
                 session_ctx = self._context_store.load_context(self._session_id)
                 session_ctx.add_operation(
                     "update_text",
-                    f"Updated shape {shape_id} text to: {new_text[:50]}",
-                    {"shape_id": shape_id, "new_text": new_text}
+                    f"Updated shape {shape_id} text to: {normalized_text[:50]}",
+                    {
+                        "shape_id": shape_id,
+                        "new_text": normalized_text,
+                        "normalized_line_breaks": normalized_changed,
+                    }
                 )
                 self._context_store.save_context(session_ctx)
             except Exception:
@@ -491,7 +503,11 @@ class VisioTools:
             
             log_operation(
                 operation="update_shape_text",
-                details={"shape_id": shape_id, "new_text": new_text},
+                details={
+                    "shape_id": shape_id,
+                    "new_text": normalized_text,
+                    "normalized_line_breaks": normalized_changed,
+                },
                 result=error_msg,
                 success=False
             )
@@ -586,11 +602,12 @@ class VisioTools:
         从图表中删除形状。
         
         Permanently deletes the specified shape from the current page.
+        Connector targets are auto-routed to connector-specific deletion.
         
         中文指令：删除形状、移除、去掉、删掉
         
         Args:
-            shape_id: ID of the shape to remove
+            shape_id: ID of the shape or connector to remove
         
         Returns:
             Status message
@@ -601,40 +618,121 @@ class VisioTools:
         err = self._ensure_loaded_or_error("✗ No diagram loaded. Use load_diagram first.")
         if err:
             return err
-        
-        success = self.diagram_builder.remove_shape(shape_id)
+
+        resolved_shape_id = self._resolve_shape_id(shape_id) or shape_id
+        target_shape = self.diagram_builder.get_shape_by_id(resolved_shape_id)
+        if target_shape and self.diagram_builder._is_connector(target_shape):
+            return self._remove_connector_with_logging(
+                resolved_shape_id,
+                operation="remove_shape",
+                details={
+                    "requested_identifier": shape_id,
+                    "resolved_shape_id": resolved_shape_id,
+                    "target_type": "connector",
+                    "routed_to": "remove_connector",
+                },
+            )
+
+        outcome = self.diagram_builder.remove_shape(resolved_shape_id)
+        if isinstance(outcome, tuple):
+            success, reason = outcome
+        else:
+            success, reason = bool(outcome), ""
         if success:
             result = f"✓ Removed shape {shape_id}"
             log_operation(
                 operation="remove_shape",
-                details={"shape_id": shape_id},
+                details={
+                    "shape_id": resolved_shape_id,
+                    "requested_identifier": shape_id,
+                },
                 result=result,
                 success=True
             )
             return result
         else:
-            error_msg = f"✗ Failed to remove shape {shape_id}. Possible reasons:\n"
-            error_msg += f"  - Shape ID '{shape_id}' not found on current page\n"
-            error_msg += f"  - Use list_shapes to find valid shape IDs\n"
-            error_msg += f"  - Check console output for detailed error"
+            error_msg = f"✗ Failed to remove shape {shape_id}."
+            if reason:
+                error_msg += f" [{reason}]"
+            error_msg += "\n  - Shape ID was not found, or connector cleanup failed"
+            error_msg += f"\n  - Use list_shapes to find valid shape IDs"
+            error_msg += f"\n  - Check console output for detailed error"
             
             log_operation(
                 operation="remove_shape",
-                details={"shape_id": shape_id},
+                details={
+                    "shape_id": resolved_shape_id,
+                    "requested_identifier": shape_id,
+                    "reason": reason,
+                },
                 result=error_msg,
                 success=False
             )
             return error_msg
+
+    def _remove_connector_with_logging(
+        self,
+        connector_id: str,
+        operation: str = "remove_connector",
+        details: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Remove a connector and record the routed operation."""
+        connector = self.diagram_builder.get_shape_by_id(connector_id)
+        op_details = {"connector_id": connector_id, **(details or {})}
+
+        if not connector:
+            result = f"✗ Connector '{connector_id}' not found"
+            log_operation(operation, op_details, result, False)
+            return result
+
+        if not self.diagram_builder._is_connector(connector):
+            result = f"✗ Shape '{connector_id}' is not a connector"
+            log_operation(operation, op_details, result, False)
+            return result
+
+        success = self.diagram_builder.remove_connector(connector_id)
+        if success:
+            result = f"✓ Removed connector {connector_id}"
+            log_operation(operation, op_details, result, True)
+            return result
+
+        error_msg = f"✗ Failed to remove connector {connector_id}. Possible reasons:\n"
+        error_msg += "  - Connector ID was not found on current page\n"
+        error_msg += "  - Connector XML could not be removed cleanly\n"
+        error_msg += "  - Check console output for detailed error"
+        log_operation(operation, op_details, error_msg, False)
+        return error_msg
+
+    def remove_connector(self, connector_id: str) -> str:
+        """
+        Remove a connector from the diagram.
+        从图表中删除连接线。
+
+        Args:
+            connector_id: ID of the connector to remove
+
+        Returns:
+            Status message
+
+        Example:
+            remove_connector("12")
+        """
+        err = self._ensure_loaded_or_error("✗ No diagram loaded. Use load_diagram first.")
+        if err:
+            return err
+
+        return self._remove_connector_with_logging(connector_id, operation="remove_connector")
     
     def remove_shape_smart(self, shape_identifier: str, reconnect_mode: str = "smart_reconnect") -> str:
         """
         Remove a shape with advanced connector management options.
         智能删除形状，自动处理连接线。
         
-        Provides enhanced control over how connectors are handled when removing shapes.
+        Provides enhanced control over how connectors are handled when removing
+        shapes. Connector targets are auto-routed to connector deletion.
         
         Args:
-            shape_identifier: ID or NodeKey of the shape to remove
+            shape_identifier: ID or NodeKey of the shape or connector to remove
             reconnect_mode: Connector handling mode:
                 - "smart_reconnect": Automatically reconnect through deleted shape (recommended)
                 - "remove_connectors": Remove all connected connectors 
@@ -661,6 +759,25 @@ class VisioTools:
         shape_id = self._resolve_shape_id(shape_identifier)
         if not shape_id:
             return f"✗ Shape '{shape_identifier}' not found"
+
+        target_shape = self.diagram_builder.get_shape_by_id(shape_id)
+        if target_shape and self.diagram_builder._is_connector(target_shape):
+            if reconnect_mode == "validate_only":
+                return (
+                    f"✓ Connector {shape_identifier} is safe to remove. "
+                    "remove_shape will route it to connector deletion."
+                )
+            return self._remove_connector_with_logging(
+                shape_id,
+                operation="remove_shape_smart",
+                details={
+                    "requested_identifier": shape_identifier,
+                    "resolved_shape_id": shape_id,
+                    "target_type": "connector",
+                    "routed_to": "remove_connector",
+                    "reconnect_mode": reconnect_mode,
+                },
+            )
         
         if reconnect_mode == "validate_only":
             # Just check if safe to remove
@@ -693,7 +810,7 @@ class VisioTools:
         else:
             _reason_hints = {
                 "NO_SHAPE": "Shape ID not found on the current page. Call analyze_template to list valid IDs.",
-                "IS_CONNECTOR": "Target is a connector, not a shape. Use remove_shape on non-connector shapes only.",
+                "IS_CONNECTOR": "Target resolved to a connector after lookup. Refresh the live shape list and retry.",
                 "SAVE_REQUIRED": "Diagram must be saved and reloaded before shapes can be removed.",
                 "EDGE_ERROR": "Connector-management step encountered an error (see detail below).",
             }
@@ -1873,6 +1990,117 @@ class VisioTools:
             details={"keys": list(mapping.keys()), "pattern": pattern},
             result=result,
             success=True,
+        )
+        return result
+    
+    def fit_page_to_drawing(
+        self,
+        page: Optional[int] = None,
+        margin: float = 0.5,
+    ) -> str:
+        """
+        Resize the current page so all drawing content fits inside it.
+
+        This mirrors Visio's "Fit to Drawing" behavior more closely than a
+        plain page resize: it translates the drawing toward the page origin,
+        applies the requested margin, and then updates the page size.
+
+        Args:
+            page: Optional zero-based page index. If provided, switches to that
+                page before fitting.
+            margin: Desired outer margin in inches around the drawing.
+
+        Returns:
+            Status summary with before/after page geometry.
+        """
+        err = self._ensure_loaded_or_error("✗ No diagram loaded.")
+        if err:
+            return err
+
+        if margin < 0:
+            return "✗ margin must be >= 0 inches."
+
+        if page is not None:
+            page_obj = self.diagram_builder.get_page(page)
+            if not page_obj:
+                pages = self.diagram_builder.list_pages()
+                return (
+                    f"✗ Page index {page} not found.\n"
+                    f"  - Available pages: {', '.join(pages) if pages else 'none'}"
+                )
+            try:
+                self._persist()
+            except Exception:
+                pass
+
+        before = self.diagram_builder.check_content_bounds()
+        if "error" in before and before["error"] == "No shapes to measure":
+            return "✗ No shapes found on the target page; nothing to fit."
+
+        old_width = float(getattr(self.diagram_builder.current_page, "width", 0) or 0)
+        old_height = float(getattr(self.diagram_builder.current_page, "height", 0) or 0)
+
+        from ..utils import layout_config
+
+        original_margin = layout_config.AUTO_FIT_MARGIN_IN
+        try:
+            layout_config.AUTO_FIT_MARGIN_IN = float(margin)
+            success = self.diagram_builder.auto_fit_page_to_content()
+        finally:
+            layout_config.AUTO_FIT_MARGIN_IN = original_margin
+
+        after = self.diagram_builder.check_content_bounds()
+        new_width = float(getattr(self.diagram_builder.current_page, "width", 0) or 0)
+        new_height = float(getattr(self.diagram_builder.current_page, "height", 0) or 0)
+        translate_x = float(after.get("min_x", 0) or 0) - float(before.get("min_x", 0) or 0)
+        translate_y = float(after.get("min_y", 0) or 0) - float(before.get("min_y", 0) or 0)
+        page_name = getattr(self.diagram_builder.current_page, "name", f"page {page or 0}")
+
+        if success:
+            self._has_unsaved_changes = True
+            try:
+                self._persist()
+            except Exception:
+                pass
+
+            lines = [
+                f"✓ Fitted page '{page_name}' to drawing",
+                f"  Page size: {old_width:.2f} x {old_height:.2f} in -> {new_width:.2f} x {new_height:.2f} in",
+                f"  Content bounds: {before.get('content_width', 0):.2f} x {before.get('content_height', 0):.2f} in",
+                f"  Margin: {float(margin):.2f} in",
+                f"  Translation: dx={translate_x:.2f}, dy={translate_y:.2f} in",
+            ]
+            if not after.get("fits", False):
+                lines.append("  Warning: content still exceeds page bounds after fit.")
+            result = "\n".join(lines)
+            log_operation(
+                operation="fit_page_to_drawing",
+                details={
+                    "page": page,
+                    "page_name": page_name,
+                    "margin": float(margin),
+                    "old_width": old_width,
+                    "old_height": old_height,
+                    "new_width": new_width,
+                    "new_height": new_height,
+                    "translate_x": translate_x,
+                    "translate_y": translate_y,
+                    "fits_after": after.get("fits", False),
+                },
+                result=result,
+                success=True,
+            )
+            return result
+
+        result = (
+            f"✗ Failed to fit page '{page_name}' to drawing.\n"
+            f"  Page size remains {new_width:.2f} x {new_height:.2f} in"
+        )
+        log_operation(
+            operation="fit_page_to_drawing",
+            details={"page": page, "page_name": page_name, "margin": float(margin)},
+            result=result,
+            success=False,
         )
         return result
     
@@ -3059,6 +3287,7 @@ def get_visio_tools(visio_tools_instance: VisioTools) -> List:
         visio_tools_instance.clone_shape,
         visio_tools_instance.replace_shape,
         visio_tools_instance.remove_shape,
+        visio_tools_instance.remove_connector,
         visio_tools_instance.remove_shape_smart,
         visio_tools_instance.find_shape_by_text,
         visio_tools_instance.list_shapes,

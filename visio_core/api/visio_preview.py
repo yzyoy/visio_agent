@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -111,6 +112,7 @@ def preview_page(
     file: Optional[str] = None,  # Support 'file' parameter for backward compatibility
     page: int = 0,
     scale: float = 1.0,
+    rev: Optional[str] = None,
 ):
     # Modern self-contained HTML preview.
     #
@@ -489,11 +491,22 @@ def preview_page(
     let zoom = 1.0;
     let lastPath = null;
     let lastPage = null;
+    let lastRev = null;
+    const initialPath = {json.dumps(safe_path)};
+    const initialPage = {json.dumps(str(page))};
+    const initialRev = {json.dumps(rev or "")};
 
     const $ = (id) => document.getElementById(id);
 
-    function buildSrc(path, page) {{
-      return `/api/visio/render?path=${{encodeURIComponent(path)}}&page=${{page}}`;
+    function getRevision(path, page) {{
+      if (!initialRev) return '';
+      return (path === initialPath && String(page) === initialPage) ? initialRev : '';
+    }}
+
+    function buildSrc(path, page, rev) {{
+      let url = `/api/visio/render?path=${{encodeURIComponent(path)}}&page=${{page}}`;
+      if (rev) url += `&rev=${{encodeURIComponent(rev)}}`;
+      return url;
     }}
 
     function clamp(v, lo, hi) {{ return Math.max(lo, Math.min(hi, v)); }}
@@ -580,8 +593,9 @@ def preview_page(
       const path = $('path').value.trim();
       const page = $('page').value;
       const img = $('img');
+      const rev = getRevision(path, page);
 
-      const sourceChanged = (path !== lastPath) || (page !== lastPage);
+      const sourceChanged = (path !== lastPath) || (page !== lastPage) || (rev !== lastRev);
       if (!force && !sourceChanged && img.src) {{
         applyZoom();
         return;
@@ -589,7 +603,8 @@ def preview_page(
 
       lastPath = path;
       lastPage = page;
-      let url = buildSrc(path, page);
+      lastRev = rev;
+      let url = buildSrc(path, page, rev);
       if (force) url += `&nocache=true&t=${{Date.now()}}`;
 
       setStatus('Loading preview…', 'loading');

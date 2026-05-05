@@ -335,7 +335,7 @@ class PromptTools:
         """Recommend templates from a natural-language requirement.
 
         This is the canonical LLM-facing recommendation surface used by the
-        consolidated 15-tool contract. It prefers the SmartMatcher semantic
+        consolidated 16-tool contract. It prefers the SmartMatcher semantic
         path and degrades into a structured keyword fallback when the model is
         unavailable or the semantic path fails.
 

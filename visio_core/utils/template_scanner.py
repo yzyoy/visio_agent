@@ -1,6 +1,6 @@
 """
-Template scanner utility for analyzing Visio diagrams
-Extracts shape information, connectors, and metadata from .vsdx files
+Template scanner utility for analyzing Visio diagrams.
+Extracts shape information, connectors, and metadata from .vsdx/.vsd files.
 """
 import os
 from typing import Dict, List, Any
@@ -11,18 +11,30 @@ from ..utils.layout_config import normalize_shape_type
 
 class TemplateScanner:
     """Scans Visio templates and extracts structural information"""
+
+    SUPPORTED_EXTENSIONS = ('.vsdx', '.vsd')
     
     @staticmethod
     def scan_template(vsdx_path: str) -> Dict[str, Any]:
         """
-        Scan a .vsdx template file and extract information
+        Scan a Visio template file and extract information.
         
         Args:
-            vsdx_path: Path to the .vsdx file
+            vsdx_path: Path to the .vsdx or .vsd file
             
         Returns:
             Dictionary with template metadata and structure
         """
+        ext = os.path.splitext(vsdx_path)[1].lower()
+        if ext == '.vsd':
+            return TemplateScanner._scan_legacy_template(vsdx_path)
+        if ext != '.vsdx':
+            return {
+                'filename': os.path.basename(vsdx_path),
+                'error': f"Unsupported template format: {ext}",
+                'scan_date': datetime.now().isoformat(),
+            }
+
         try:
             # Load the diagram
             diagram = DiagramBuilder.load_from_file(vsdx_path)
@@ -154,6 +166,130 @@ class TemplateScanner:
                 'error': str(e),
                 'scan_date': datetime.now().isoformat(),
             }
+
+    @staticmethod
+    def _scan_legacy_template(vsd_path: str) -> Dict[str, Any]:
+        """Scan a legacy .vsd template via Aspose."""
+        try:
+            from aspose.diagram import Diagram
+
+            diagram = Diagram(vsd_path)
+            pages = list(diagram.pages)
+            if not pages:
+                return {
+                    'filename': os.path.basename(vsd_path),
+                    'error': 'No pages found in file',
+                    'scan_date': datetime.now().isoformat(),
+                }
+
+            pages_info = []
+            pages_detail = []
+            total_shapes = {}
+            total_connectors = 0
+            all_shape_texts = []
+
+            for page_idx, page in enumerate(pages):
+                page_name = getattr(page, 'name', None) or f'Page-{page_idx}'
+                page_shape_counts = {}
+                page_shape_total = 0
+                page_connector_count = 0
+
+                for shape in list(page.shapes):
+                    if getattr(shape, 'one_d', False):
+                        total_connectors += 1
+                        page_connector_count += 1
+                        continue
+
+                    shape_type = TemplateScanner._infer_legacy_shape_type(shape)
+                    if shape_type != 'Unknown':
+                        total_shapes[shape_type] = total_shapes.get(shape_type, 0) + 1
+                        page_shape_counts[shape_type] = page_shape_counts.get(shape_type, 0) + 1
+                        page_shape_total += 1
+
+                    shape_text = TemplateScanner._extract_legacy_shape_text(shape)
+                    if shape_text and len(all_shape_texts) < 30:
+                        all_shape_texts.append(shape_text)
+
+                pages_info.append({
+                    'name': page_name,
+                    'shape_count': page_shape_total,
+                    'connector_count': page_connector_count,
+                })
+                pages_detail.append({
+                    'name': page_name,
+                    'groups': [],
+                    'ungrouped_shapes': {
+                        'shapes': page_shape_counts,
+                        'total': page_shape_total,
+                    },
+                })
+
+            complexity = TemplateScanner._calculate_complexity(
+                sum(total_shapes.values()), total_connectors
+            )
+
+            return {
+                'filename': os.path.basename(vsd_path),
+                'scan_date': datetime.now().isoformat(),
+                'pages': pages_info,
+                'total_pages': len(pages_info),
+                'total_shapes': total_shapes,
+                'total_connectors': total_connectors,
+                'sample_texts': all_shape_texts[:30],
+                'complexity': complexity,
+                'has_multiple_pages': len(pages_info) > 1,
+                'pages_detail': pages_detail,
+                'connection_graph': {},
+                'topology_pattern': {
+                    'pattern_type': 'legacy_vsd',
+                    'description': 'Legacy .vsd template scanned via Aspose',
+                },
+                'layout_pattern': {
+                    'pattern_type': 'legacy_vsd',
+                    'description': 'Legacy .vsd template scanned via Aspose',
+                },
+            }
+        except Exception as e:
+            return {
+                'filename': os.path.basename(vsd_path),
+                'error': str(e),
+                'scan_date': datetime.now().isoformat(),
+            }
+
+    @staticmethod
+    def _infer_legacy_shape_type(shape) -> str:
+        """Best-effort type inference for shapes scanned from legacy .vsd files."""
+        master = getattr(shape, 'master', None)
+        for candidate in (
+            getattr(master, 'name_u', None),
+            getattr(master, 'name', None),
+            getattr(shape, 'name_u', None),
+            getattr(shape, 'name', None),
+        ):
+            if isinstance(candidate, str) and candidate.strip():
+                return normalize_shape_type(candidate.strip())
+        return 'Unknown'
+
+    @staticmethod
+    def _extract_legacy_shape_text(shape) -> str:
+        """Extract display text from a legacy Aspose shape when available."""
+        for method_name in ('get_display_text', 'get_pure_text'):
+            method = getattr(shape, method_name, None)
+            if callable(method):
+                try:
+                    text = str(method() or '').strip()
+                except Exception:
+                    continue
+                if text:
+                    return text
+
+        raw_text = getattr(shape, 'text', None)
+        if raw_text is None:
+            return ''
+        try:
+            return str(raw_text).strip()
+        except Exception:
+            return ''
     
     @staticmethod
     def _is_group(shape) -> bool:
@@ -490,19 +626,20 @@ class TemplateScanner:
             }
     
     @staticmethod
-    def scan_directory(directory_path: str, pattern: str = "*.vsdx", recursive: bool = True) -> Dict[str, Dict[str, Any]]:
+    def scan_directory(directory_path: str, pattern: str = "*.vsd*", recursive: bool = True) -> Dict[str, Dict[str, Any]]:
         """
-        Scan all .vsdx files in a directory (recursively by default)
+        Scan Visio template files in a directory (recursively by default).
         
         Args:
             directory_path: Path to directory containing templates
-            pattern: File pattern to match (default: *.vsdx)
+            pattern: File pattern to match (default: *.vsd* for .vsdx/.vsd)
             recursive: If True, scan subdirectories recursively (default: True)
             
         Returns:
             Dictionary mapping relative file path to scan results
         """
         results = {}
+        supported_extensions = TemplateScanner._resolve_scan_extensions(pattern)
         
         if not os.path.exists(directory_path):
             return results
@@ -511,7 +648,7 @@ class TemplateScanner:
             # Recursively scan all subdirectories
             for root, dirs, files in os.walk(directory_path):
                 for filename in files:
-                    if filename.endswith('.vsdx'):
+                    if filename.lower().endswith(supported_extensions):
                         filepath = os.path.join(root, filename)
                         # Use relative path from the base directory as key
                         rel_path = os.path.relpath(filepath, directory_path)
@@ -522,10 +659,21 @@ class TemplateScanner:
             # Only scan the top-level directory
             for filename in os.listdir(directory_path):
                 filepath = os.path.join(directory_path, filename)
-                if os.path.isfile(filepath) and filename.endswith('.vsdx'):
+                if os.path.isfile(filepath) and filename.lower().endswith(supported_extensions):
                     print(f"  扫描: {filename}")
                     scan_result = TemplateScanner.scan_template(filepath)
                     results[filename] = scan_result
         
         return results
+
+    @staticmethod
+    def _resolve_scan_extensions(pattern: str) -> tuple[str, ...]:
+        normalized = (pattern or '').strip().lower()
+        if normalized in {'', '*', '*.*', '*.vsd*'}:
+            return TemplateScanner.SUPPORTED_EXTENSIONS
+        if normalized == '*.vsdx':
+            return ('.vsdx',)
+        if normalized == '*.vsd':
+            return ('.vsd',)
+        return TemplateScanner.SUPPORTED_EXTENSIONS
 

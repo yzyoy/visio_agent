@@ -58,16 +58,21 @@ def main() -> int:
     print(response)
 
     _section("2. Structural validation of the response")
-    img_match = re.search(r"!\[[^\]]*\]\(([^)]+)\)", response)
+    img_match = re.search(r'<img[^>]+src="([^"]+)"', response)
     link_match = re.search(r"\[Open interactive preview[^\]]*\]\(([^)]+)\)", response)
 
-    assert img_match, "render_page output must include an inline ![](...) image"
+    assert img_match, "render_page output must include an inline <img ...> preview"
     assert link_match, "render_page output must include the interactive preview link"
 
     img_url = img_match.group(1)
     viewer_url = link_match.group(1)
     print(f"  inline image URL : {img_url}")
     print(f"  viewer link URL  : {viewer_url}")
+
+    assert 'max-width:100%' in response and 'max-height:70vh' in response, (
+        "inline preview must be fit-window constrained for agno/chat rendering"
+    )
+    print("  ✓ inline preview includes fit-window sizing styles")
 
     assert img_url.startswith("http"), "inline image must be a real URL (not a stale data: URI)"
     assert "/api/visio/render?path=" in img_url, (
@@ -121,7 +126,7 @@ def main() -> int:
 
     _section("5. data-URI mode still returns the viewer link")
     data_response = render_page(page=0, scale=2.0, mode="data")
-    has_inline_img = bool(re.search(r"!\[[^\]]*\]\([^)]+\)", data_response))
+    has_inline_img = bool(re.search(r'<img[^>]+src="[^"]+"', data_response))
     has_viewer_link = "/api/visio/preview?path=" in data_response
     print(f"  inline image present : {has_inline_img}")
     print(f"  viewer link present  : {has_viewer_link}")

@@ -31,7 +31,7 @@ def create_visio_agent(
     use_dynamic_instructions: bool = True,
     db: Optional[Any] = None,
 ) -> Agent:
-    """Build the agno Visio agent wired onto the consolidated 15-tool surface.
+    """Build the agno Visio agent wired onto the consolidated 16-tool surface.
 
     Args:
         model: agno-compatible LLM model (e.g. OpenAIChat / DeepSeek).

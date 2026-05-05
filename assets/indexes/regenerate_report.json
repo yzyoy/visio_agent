@@ -1,0 +1,26 @@
+{
+  "stencils": {
+    "ok": false,
+    "mode": "partial",
+    "scan_dir": "C:\\Data\\data\\agent\\assets\\templates\\stencils",
+    "target_subdirs": [
+      "生活场景"
+    ],
+    "scanned_count": 507,
+    "updated_count": 503,
+    "failed_count": 4,
+    "cleared_existing_count": 0,
+    "full_count": 763,
+    "lite_count": 761,
+    "failures": {
+      "生活场景/办公与通用图形/visio图标库.vss": "Proxy error(InvalidOperationException): This is not a structured storage file.",
+      "生活场景/办公与通用图形/收藏夹.vssx": "Failed to load masters from C:\\Data\\data\\agent\\assets\\templates\\stencils\\生活场景\\办公与通用图形\\收藏夹.vssx: \"There is no item named 'visio/masters/masters.xml' in the archive\"",
+      "生活场景/办公与通用图形/收藏夹_001.vssx": "Failed to load masters from C:\\Data\\data\\agent\\assets\\templates\\stencils\\生活场景\\办公与通用图形\\收藏夹_001.vssx: \"There is no item named 'visio/masters/masters.xml' in the archive\"",
+      "生活场景/网络通信与数据中心/IP Phone - IP Telephone.5.04.vss": "Proxy error(DiagramException): Error in element VisioDocument in \\VisioDocument. Error in element Master in \\VisioDocument\\Masters\\Master[31]. Error in element Shape in \\VisioDocument\\Masters\\Master[31]\\PageSheet[00000000-0000-0000-0000-000000000000]\\Shapes\\Shape[6]. Error in element Connection in \\VisioDocument\\Masters\\Master[31]\\PageSheet[00000000-0000-0000-0000-000000000000]\\Shapes\\Shape[6]\\Connection[1]. Index was outside the bounds of the array."
+    },
+    "written_files": [
+      "C:\\Data\\data\\agent\\assets\\indexes\\stencil_library.json",
+      "C:\\Data\\data\\agent\\assets\\indexes\\stencil_library_lite.json"
+    ]
+  }
+}

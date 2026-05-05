@@ -92,6 +92,11 @@ _SPEC_TABLE: Dict[str, Dict[str, Any]] = {
         error_codes=(ErrorCode.DOC_NOT_OPEN.value, ErrorCode.INVALID_OOXML.value,
                      ErrorCode.SAVE_REQUIRES_RELOAD.value),
     ),
+    "fit_page_to_drawing": dict(
+        summary="Resize a page to fit the drawing content with a margin.",
+        idempotent=True, mutates=True,
+        error_codes=(ErrorCode.DOC_NOT_OPEN.value,),
+    ),
     "render_page": dict(
         summary="Render a page to PNG (data URI or URL).",
         idempotent=True, mutates=False,
@@ -116,14 +121,15 @@ _SPEC_TABLE: Dict[str, Dict[str, Any]] = {
         error_codes=(ErrorCode.SELECTOR_NOT_FOUND.value,),
     ),
     "remove_shape": dict(
-        summary="Remove a shape with smart reconnection of upstream edges.",
+        summary="Remove a shape with smart reconnection; connector IDs auto-route to connector deletion.",
         idempotent=True, mutates=True,
         error_codes=(ErrorCode.SELECTOR_NOT_FOUND.value,),
     ),
     "edit_shape": dict(
-        summary="Apply a patch to a shape: {position, size, style} "
-                "(absolute or relative position, size, line_width, "
-                "line_color, fill_color).",
+        summary="Apply a patch to a shape: {text, node_key, position, "
+                "size, style}. Text is normalized to a single line; "
+                "position can be absolute or relative; style supports "
+                "line_width, line_color, and fill_color.",
         idempotent=True, mutates=True,
         error_codes=(ErrorCode.SELECTOR_NOT_FOUND.value,),
     ),

@@ -5777,12 +5777,18 @@ class DiagramBuilder:
             
             # Get all non-connector shapes
             all_shapes = list(self.current_page.child_shapes)
-            shapes = [s for s in all_shapes if not self._is_connector(s)]
+            shapes = [
+                s for s in all_shapes
+                if not self._is_connector(s) and not self._is_guide(s)
+            ]
             
             if not shapes:
                 print("Warning: No shapes to fit - keeping default page size")
                 return False
             
+            old_width = float(self.current_page.width or 0)
+            old_height = float(self.current_page.height or 0)
+
             # Calculate content bounding box
             min_x = min(float(s.x or 0) - float(s.width or 0)/2 for s in shapes)
             max_x = max(float(s.x or 0) + float(s.width or 0)/2 for s in shapes)
@@ -5799,6 +5805,17 @@ class DiagramBuilder:
             # Apply constraints
             new_width = max(MIN_PAGE_SIZE_IN, min(MAX_PAGE_SIZE_IN, new_width))
             new_height = max(MIN_PAGE_SIZE_IN, min(MAX_PAGE_SIZE_IN, new_height))
+
+            # Match Visio's "Fit to Drawing" behavior more closely by first
+            # translating the drawing so its bounding box starts at the target
+            # margin from the page origin, then resizing the page. Resizing
+            # alone is insufficient when the drawing lives far from (0, 0).
+            translate_x = AUTO_FIT_MARGIN_IN - min_x
+            translate_y = AUTO_FIT_MARGIN_IN - min_y
+            if abs(translate_x) > 1e-9 or abs(translate_y) > 1e-9:
+                for shape in shapes:
+                    shape.x = float(shape.x or 0) + translate_x
+                    shape.y = float(shape.y or 0) + translate_y
             
             # Set page dimensions using vsdx library's width and height properties
             # The vsdx library provides direct access to page dimensions as float attributes
@@ -5806,9 +5823,18 @@ class DiagramBuilder:
             self.current_page.height = new_height
             
             print(f"[OK] Page auto-fitted to {new_width:.2f} x {new_height:.2f} inches")
+            print(f"  Previous page: {old_width:.2f} x {old_height:.2f} inches")
             print(f"  Content: {content_width:.2f} x {content_height:.2f} inches")
             print(f"  Margin: {AUTO_FIT_MARGIN_IN} inches")
-            return True
+            print(f"  Translation: dx={translate_x:.2f}, dy={translate_y:.2f} inches")
+
+            after_bounds = self.check_content_bounds()
+            if not after_bounds.get("fits", False):
+                print(
+                    "Warning: Auto-fit completed but content still exceeds page bounds "
+                    "(likely due to max page size clamp)."
+                )
+            return bool(after_bounds.get("fits", False))
                 
         except Exception as e:
             print(f"Error auto-fitting page: {e}")

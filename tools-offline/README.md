@@ -1,47 +1,47 @@
 # tools-offline
 
-Offline CLI utilities that are **not** exposed to the LLM. None of them are wired into the agent tool surface.
+面向离线场景的命令行工具集，**不会**暴露给大模型，也未接入 Agent 的工具接口。
 
-## Scope
+## 作用范围
 
-These scripts maintain **both**:
+这些脚本同时维护两类资源：
 
-- **Templates** (`.vsdx`) — `--template-dir` populates `template_library*.json` (skipped when `--stencils-only`).
-- **Stencils** (`.vssx`) — `--stencil-dir`; alone with `--stencils-only` updates only `stencil_library.json`.
+- **模板**（`.vsdx`）—— `--template-dir` 会写入 `template_library*.json`（若使用 `--stencils-only` 则会跳过模板扫描）。
+- **形状库 / stencil**（`.vssx`）—— `--stencil-dir`；单独配合 `--stencils-only` 时，会更新 `stencil_library.json` 与 `stencil_library_lite.json`。
 
-Watermark detection applies to **both** file types by default (`--ext .vsdx,.vssx`). They are not stencil-only tools.
+水印检测默认对 **上述两种** 扩展名生效（`.vsdx,.vssx`，可用 `--ext` 覆盖）。它们并非仅限 stencil 的工具。
 
-Typical layout under `assets/templates/` (adjust paths if yours differ):
+`assets/templates/` 下的常见目录布局如下（若你的仓库路径不同，请自行替换）：
 
-| Path | Role |
+| 路径 | 用途 |
 |------|------|
-| `assets/templates/library/` | `.vsdx` templates |
-| `assets/templates/stencils/` | `.vssx` stencil packs |
+| `assets/templates/library/` | `.vsdx` 模板 |
+| `assets/templates/stencils/` | `.vssx` stencil 包 |
 
-You can point `detect_watermarks --library` at a single subtree (e.g. only `library/`), only `stencils/`, or a parent folder that contains both — the scanner walks the tree recursively.
+可将 `detect_watermarks --library` 指向单独子树（例如仅 `library/`）、仅 `stencils/`，或包含二者的上级目录——扫描器会递归遍历目录树。
 
-Generated indexes land in `--out-dir` (commonly `assets/indexes/`): `template_library.json`, `template_library_lite.json`, and optionally `stencil_library.json`.
+生成的索引写入 `--out-dir`（一般为 `assets/indexes/`）：`template_library.json`、`template_library_lite.json`、`stencil_library.json`、`stencil_library_lite.json`。
 
-## Package layout
+## 包结构
 
-- **`library_maintenance/`** — `detect_watermarks`, `prune_library`, `regenerate_indexes`.
+- **`library_maintenance/`** — `detect_watermarks`、`prune_library`、`regenerate_indexes`。
 
-Invoke scripts **by path** (examples below) or with **`python -m tools-offline.library_maintenance.<module>`** from the repo root — both resolve the hyphenated folder name as a package when the current directory is on `sys.path`.
+可通过 **脚本路径** 调用（下文示例），或在仓库根目录使用 **`python -m tools-offline.library_maintenance.<模块名>`** —— 当当前目录在 `sys.path` 中时，带连字符的文件夹名会作为包被正确解析。
 
-## Recommended workflow (watermark audit → prune → indexes)
+## 推荐流程（水印审计 → 剔除 → 重建索引）
 
-1. **Detect** — write a manifest; **no files are modified.**
-2. **Review** `refine/library_audit/watermarks.json` (or your `--out` path).
-3. **Prune** — move flagged files to quarantine; use `--dry-run` first. Writes `removed.json` for bookkeeping.
-4. **Regenerate indexes** — run after prune so JSON indexes match files on disk.
+1. **检测** —— 写出清单；**不修改任何源文件。**
+2. **人工复核** `refine/library_audit/watermarks.json`（或你指定的 `--out` 路径）。
+3. **剔除** —— 将标记文件移至隔离区；务必先用 `--dry-run`。会写入 `removed.json` 便于追溯。
+4. **重建索引** —— 剔除后运行，使磁盘上的文件与 JSON 索引一致。
 
-More detail (dry-run, recovery): see [`refine/LIBRARY_PRUNING_PROCEDURE.md`](../refine/LIBRARY_PRUNING_PROCEDURE.md).
+更多说明（dry-run、恢复等）：见 [`refine/LIBRARY_PRUNING_PROCEDURE.md`](../refine/LIBRARY_PRUNING_PROCEDURE.md)。
 
-## Commands
+## 命令
 
-Run from the **repository root** so paths resolve consistently.
+请在 **仓库根目录** 执行，以保证路径解析一致。
 
-**Watermark scan** (default extensions: `.vsdx,.vssx`; override with `--ext`):
+**水印扫描**（默认扩展名：`.vsdx,.vssx`；可用 `--ext` 覆盖）：
 
 ```bash
 python tools-offline/library_maintenance/detect_watermarks.py \
@@ -49,9 +49,9 @@ python tools-offline/library_maintenance/detect_watermarks.py \
     --out refine/library_audit/watermarks.json
 ```
 
-Repeat with `--library assets/templates/stencils` if stencils are not under the same tree you scanned.
+若 stencil 不在本次扫描的同一棵目录树下，可再用 `--library assets/templates/stencils` 单独扫一遍。
 
-**Prune** (destructive moves — quarantine, not delete):
+**剔除**（会移动文件至隔离区，并非删除）：
 
 ```bash
 python tools-offline/library_maintenance/prune_library.py \
@@ -61,11 +61,11 @@ python tools-offline/library_maintenance/prune_library.py \
     --dry-run
 ```
 
-Drop `--dry-run` after review.
+复核无误后去掉 `--dry-run` 再执行。
 
-**Regenerate indexes** — pick one mode:
+**重建索引** —— 任选一种模式：
 
-- **Templates only (library `.vsdx`)** — writes `template_library.json` and `template_library_lite.json`; omit `--stencil-dir`:
+- **仅模板**（library 下的 `.vsdx`）—— 写入 `template_library.json` 与 `template_library_lite.json`；不写 stencil 时可省略 `--stencil-dir`：
 
 ```bash
 python -m tools-offline.library_maintenance.regenerate_indexes \
@@ -73,7 +73,7 @@ python -m tools-offline.library_maintenance.regenerate_indexes \
     --out-dir assets/indexes
 ```
 
-- **Templates + stencils** — also writes `stencil_library.json` (template scan runs first, then stencils):
+- **模板 + stencil** —— 额外写入 `stencil_library.json` 与 `stencil_library_lite.json`（先扫模板，再扫 stencil）：
 
 ```bash
 python -m tools-offline.library_maintenance.regenerate_indexes \
@@ -82,7 +82,7 @@ python -m tools-offline.library_maintenance.regenerate_indexes \
     --out-dir assets/indexes
 ```
 
-- **Stencils only** — writes `stencil_library.json` only; skips the template scan (`--template-dir` not used):
+- **仅 stencil** —— 写入 `stencil_library.json` 与 `stencil_library_lite.json`；跳过模板扫描（无需 `--template-dir`）：
 
 ```bash
 python -m tools-offline.library_maintenance.regenerate_indexes \
@@ -91,4 +91,27 @@ python -m tools-offline.library_maintenance.regenerate_indexes \
     --out-dir assets/indexes
 ```
 
-Writes `regenerate_report.json` next to the output indexes.
+- **仅刷新新增的模板目录** —— 清除该目录前缀下已有索引项，仅重扫该子树，再合并写回 `template_library.json` 与 `template_library_lite.json`：
+
+```bash
+python -m tools-offline.library_maintenance.regenerate_indexes \
+    --template-dir assets/templates/library \
+    --template-subdir "New Folder" \
+    --out-dir assets/indexes
+```
+
+可重复传入 `--template-subdir`，在一次运行中刷新多个模板子目录。
+
+- **仅刷新新增的 stencil 目录** —— 清除该目录前缀下已有索引项，仅重扫该子树，再合并写回 `stencil_library.json` 与 `stencil_library_lite.json`：
+
+```bash
+python -m tools-offline.library_maintenance.regenerate_indexes \
+    --stencils-only \
+    --stencil-dir assets/templates/stencils \
+    --stencil-subdir "Vendor Packs" \
+    --out-dir assets/indexes
+```
+
+可重复传入 `--stencil-subdir`，在一次运行中刷新多个 stencil 子目录。
+
+会在输出索引旁写入 `regenerate_report.json`。

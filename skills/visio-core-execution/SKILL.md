@@ -1,6 +1,6 @@
 ---
 name: visio-core-execution
-description: Core Visio operations, basics, constraints, Chinese instruction mapping, and standard workflows. Use when directly editing, saving, or rendering Visio documents using the 15 public tools.
+description: Core Visio operations, basics, constraints, Chinese instruction mapping, and standard workflows. Use when directly editing, saving, or rendering Visio documents using the 16 public tools.
 ---
 
 # Visio 图表操作核心执行规则与工作流
@@ -10,7 +10,7 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 根据用户的输入，自动识别需要使用的功能：
 - 翻译请求：'翻译', 'translate', '帮我翻译', '英文怎么说'
 - Visio 操作：'创建图表', '修改形状', '列出模板', '预览图表'
-- Prompt 生成：'生成 prompt', '推荐模板', '帮我设计流程图'
+- 建图 / 规划类需求：'推荐模板', '帮我设计流程图', '画流程图', '生成 prompt'（除非用户只要文本脚本，否则一律 **直接调用工具执行**，不把长篇「可执行 Prompt」当默认回复）
 - 通用对话：其他所有对话和任务
 
 **全局显示策略（最高优先级）**：
@@ -20,13 +20,13 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
   `[文件名](http://localhost:7777/api/visio/preview?path=<完整路径>)`。
   该链接打开的页面默认走 `fit_window` 渲染，能保证用户看到完整图像；裸图片或 `outputs/static/visio/...` 直链不能替代它。
 
-## 2. Visio 图表操作基础（面向 15 工具公开表面）
+## 2. Visio 图表操作基础（面向 16 工具公开表面）
 
 核心概念：
 - **模板 (Template)**：一个完整的 Visio 文件（.vsdx），含预设形状、连接与布局，是新图表的起点。模板库位于 `assets/templates/library/`。
 - **形状库 (Stencil)**：形状集合（.vssx），可在任意图表中使用。形状库位于 `assets/templates/stencils/`。
 
-公开工具表面（且仅此 15 个）：
+公开工具表面（且仅此 16 个）：
 1. `recommend_template(requirement, top_k=5)`
 2. `search_templates(keywords=None)`
 3. `analyze_template(path)`
@@ -35,18 +35,19 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 6. `open_document(path)`
 7. `create_from_template(template_name, output_path)`
 8. `save_document(path=None)` (之后必须 open_document 再读连接器)
-9. `render_page(page=0, scale=2.0, mode="data"|"url")` — 单次调用即返回 **inline 图片 + 交互预览链接**。两者必须原样转发给用户，预览链接不得删除。
-10. `upsert_shape(node_key, text, type, x, y, width?, height?, ...)`
-11. `upsert_connector(from_node_key, to_node_key, label?, router?, from_port?, to_port?)`
-12. `update_text(selector, new_text)`
-13. `remove_shape(selector)` (自动重连上下游)
-14. `edit_shape(shape_id, patch)` (patch: {text?, node_key?, position?, size?, style?})
-15. `insert_from_stencil(master_name, stencil_name, x, y, text?)`
+9. `fit_page_to_drawing(page=0, margin=0.5)` — 类似 Visio“适应绘图”，按内容平移并重设页面尺寸。
+10. `render_page(page=0, scale=2.0, mode="data"|"url")` — 单次调用即返回 **inline 图片 + 交互预览链接**。两者必须原样转发给用户，预览链接不得删除。
+11. `upsert_shape(node_key, text, type, x, y, width?, height?, ...)`
+12. `upsert_connector(from_node_key, to_node_key, label?, router?, from_port?, to_port?)`
+13. `update_text(selector, new_text)`
+14. `remove_shape(selector)` (自动重连上下游)
+15. `edit_shape(shape_id, patch)` (patch: {text?, node_key?, position?, size?, style?})
+16. `insert_from_stencil(master_name, stencil_name, x, y, text?)`
 
 **`edit_shape` patch 完整 schema**：
 ```json
 {
-  "text":     "新文字（替换显示文本）",
+  "text":     "新文字（替换显示文本；必须保持单行，不要手动插入换行）",
   "node_key": "stable_key（为模板形状绑定稳定 key，供 upsert_connector 引用）",
   "position": {"x": 4.0, "y": 3.0, "relative": false},
   "size":     {"width": 2.0, "height": 0.8},
@@ -70,6 +71,7 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 **幂等编辑纪律**：
 - 形状 / 连接器一律走 `upsert_shape` / `upsert_connector`；同 key 反复调用不会重复。
 - 几何 / 样式改动一律用 `edit_shape(shape_id, patch)`。
+- `edit_shape(patch.text)` / `update_text(new_text)` 默认写单行文本；不要在同一个文本字段里自动插入换行，长句应优先改尺寸、换形状或简化措辞。
 - 删除形状用 `remove_shape`（带智能重连），不要绕过它手动接边。
 - 删除模板残留或局部改坏的旧形状后，默认假设仍可能存在引用已删除
   `Sheet.<id>` 的连接器；要依赖删除后的连接线清理，并在汇报时明确写出
@@ -143,7 +145,7 @@ D) 删除节点并保留上下游流向
   3) `analyze_template` (核对 connections；若是模板清理场景，明确确认连接线清理结果)
 
 E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）**
-  1) `recommend_template` → 等用户确认或直接取第一条
+  1) `recommend_template` → 用户未指定模板时 **默认取第一条合规推荐并继续**，无需先把整份执行脚本发给用户；仅在用户明确要求挑选时再停顿确认
   2) `analyze_template(template_path)` — 了解原始模板结构
   3) `create_from_template(template, "outputs/<name>.vsdx")`
   4) `open_document("outputs/<name>.vsdx")`
@@ -152,7 +154,7 @@ E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）
      `edit_shape(shape_id, {"text": "目标文字", "node_key": "stable_key"})`
      — 在此步骤中同时完成文本替换和 key 绑定，坐标由模板继承，无需手动填写 (x, y)
   7) 对每个多余的模板形状：`remove_shape(shape_id)`
-     — 若 remove_shape 返回 `IS_CONNECTOR`，说明该 ID 是连接线，跳过即可；
+     — `remove_shape` 会先判断目标类型；若该 ID 是连接线，会自动分流到 connector 删除；
        对用户汇报时必须同时说明相关连接线已清理，或说明已做 orphan 检查
   8) 仅当步骤 5 确认模板中**没有**对应角色时：
      `upsert_shape(node_key, text, type, x, y)`

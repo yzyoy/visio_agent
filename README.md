@@ -10,14 +10,14 @@
 agent/
 ├── apps/
 │   ├── agent_os.py          # ← 规范运行入口（AgentOS + FastAPI）
-│   └── visio_agent.py       # agno Agent 工厂（注入 15 个工具）
+│   └── visio_agent.py       # agno Agent 工厂（注入 16 个工具）
 ├── visio_core/              # 纯 Python 核心库（零 agno 依赖）
 │   ├── tools/               #   VisioTools / PromptTools / consolidated
 │   ├── templates/           #   TemplateManager / StencilManager
 │   ├── utils/               #   DiagramBuilder、渲染、matcher…
 │   ├── patches/             #   vsdx 猴子补丁（需显式调用）
 │   └── api/                 #   FastAPI 预览路由
-├── visio_mcp/               # MCP 传输层（15 工具的契约视图）
+├── visio_mcp/               # MCP 传输层（16 工具的契约视图）
 │   ├── contract.py
 │   ├── server.py
 │   └── errors.py
@@ -59,7 +59,7 @@ python -m uvicorn apps.agent_os:app --reload --port 7777 # 访问 http://localho
 
 启动时 `apps/agent_os.py` 会 **显式** 调用 `visio_core.apply_patches()` 打上 vsdx 补丁，并创建 `.state/dialog`、`.state/log` 与 `outputs/` 目录。
 
-## 🔧 公开工具表面（15 个，不多不少）
+## 🔧 公开工具表面（16 个）
 
 所有 LLM / MCP 客户端可见的工具，完整定义见 `visio_core/tools/consolidated.py::CONSOLIDATED_TOOL_NAMES`，由 `visio_mcp/contract.py` 在传输层原样重投影。
 
@@ -73,12 +73,13 @@ python -m uvicorn apps.agent_os:app --reload --port 7777 # 访问 http://localho
 | 文档生命周期 | `open_document` | 打开已有文档 |
 |  | `create_from_template` | 从指定模板创建新文档 |
 |  | `save_document` | 保存；之后读连接器前必须 `open_document` 重载 |
+|  | `fit_page_to_drawing` | 类似 Visio“适应绘图”，按内容重设页面尺寸 |
 |  | `render_page` | 渲染某页为 data URI 或 URL |
 | 幂等编辑 | `upsert_shape` | 按 `node_key` 创建或更新形状 |
 |  | `upsert_connector` | 按 `edge_key` 创建或更新连接器 |
 |  | `update_text` | 按 id / key / match 更新文本 |
-|  | `remove_shape` | 删除形状（智能重连上游边） |
-|  | `edit_shape` | 单次 patch：`{position, size, style}` |
+|  | `remove_shape` | 删除形状；若目标是 connector 会自动分流到连接线删除 |
+|  | `edit_shape` | 单次 patch：`{text, node_key, position, size, style}`；文本会归一化为单行 |
 |  | `insert_from_stencil` | 从 stencil 插入 master |
 
 ## 🛠️ MCP 层
@@ -130,8 +131,9 @@ Skill 文件位于 `skills/visio/SKILL.md`，强约束如下顺序：
 3. 规划：以 `node_key` / `edge_key` 命名每个形状与边
 4. `open_document(path)` 或 `create_from_template(template, output_path)`
 5. 只用 `upsert_shape` / `upsert_connector` / `update_text` / `remove_shape` / `edit_shape` / `insert_from_stencil`
-6. `save_document()` → **必须** 紧接 `open_document(same_path)`，否则 MCP 会返回 `SAVE_REQUIRES_RELOAD`
-7. `render_page(page=0, scale=2.0, mode="data")` 确认（>120KB 时自动落到 `mode="url"`）
+6. 如需让页面包住全部内容，可先调用 `fit_page_to_drawing(page=0, margin=0.5)`
+7. `save_document()` → **必须** 紧接 `open_document(same_path)`，否则 MCP 会返回 `SAVE_REQUIRES_RELOAD`
+8. `render_page(page=0, scale=2.0, mode="data")` 确认（>120KB 时自动落到 `mode="url"`）
 
 ## 🖼️ 预览与渲染
 

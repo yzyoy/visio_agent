@@ -1,5 +1,5 @@
 """
-Consolidated LLM-facing tool surface (15 canonical tools).
+Consolidated LLM-facing tool surface (16 canonical tools).
 
 This module is the single source of truth for the LLM-visible tool
 contract. It contains thin renames / adapters over methods of
@@ -7,10 +7,9 @@ contract. It contains thin renames / adapters over methods of
 :class:`visio_core.tools.prompt_tools.PromptTools`. No Visio operation
 is re-implemented here.
 
-Design rules (enforced by ``tests/test_consolidated_tool_surface.py``
-and ``tests/test_mcp_contract.py``):
+Design rules:
 
-- Exactly 15 public names. Adding a name requires a matching update in
+- Exactly 16 public names. Adding a name requires a matching update in
   ``refine/CORE_CAPABILITIES.md`` §2 and in ``visio_mcp/contract.py``.
 - Idempotent key-based mutation only. Non-idempotent ``add_shape`` /
   ``connect_shapes`` and the 5-text-tool splat are intentionally absent.
@@ -27,6 +26,7 @@ and ``tests/test_mcp_contract.py``):
 from __future__ import annotations
 
 import functools
+from html import escape as html_escape
 from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -68,6 +68,8 @@ def _build_edit_shape(visio_tools: "VisioTools") -> Callable:
     ``patch`` schema (any subset)::
 
         {
+          "text":     "single-line replacement text",
+          "node_key": "stable-shape-key",
           "position": {"x": float, "y": float, "relative": bool?},
           "size":     {"width": float, "height": float},
           "style":    {"line_width": float, "line_color": "#RRGGBB",
@@ -86,7 +88,8 @@ def _build_edit_shape(visio_tools: "VisioTools") -> Callable:
             patch: A dict with any subset of
                 ``{"text", "node_key", "position", "size", "style"}``.
 
-                - ``text`` replaces the shape's display text.
+                - ``text`` replaces the shape's display text. Embedded
+                  line breaks are normalized to spaces.
                 - ``node_key`` assigns a stable key so the shape can be
                   referenced by ``upsert_connector``.
                 - ``position.relative=True`` applies the offset via
@@ -213,10 +216,11 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
         or "http://localhost:7777"
     ).rstrip("/")
 
-    def _build_links(target: str, page: int) -> tuple[str, str]:
+    def _build_links(target: str, page: int, revision: Optional[str] = None) -> tuple[str, str]:
         encoded = quote(target, safe="/:")
-        png_url = f"{base_url}/api/visio/render?path={encoded}&page={page}"
-        viewer_url = f"{base_url}/api/visio/preview?path={encoded}&page={page}"
+        rev_suffix = f"&rev={quote(revision, safe='')}" if revision else ""
+        png_url = f"{base_url}/api/visio/render?path={encoded}&page={page}{rev_suffix}"
+        viewer_url = f"{base_url}/api/visio/preview?path={encoded}&page={page}{rev_suffix}"
         return png_url, viewer_url
 
     def render_page(
@@ -230,11 +234,10 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
         Returns a chat-ready response that contains **two** complete,
         fit-window viewable surfaces:
 
-        1. An inline preview image (``![](<src>)``) so the user can see
-           the diagram immediately in the chat transcript. The PNG is the
-           identical, full-page, fit-window-ready image that the
-           interactive viewer would display — never a cropped or
-           half-rendered thumbnail.
+        1. An inline preview image rendered as chat-friendly HTML so agno
+           keeps it inside the message viewport. The PNG is the identical,
+           full-page, fit-window-ready image that the interactive viewer
+           would display — never a cropped or half-rendered thumbnail.
         2. A markdown link to the interactive preview page
            (``[Open interactive preview](http://.../api/visio/preview?...)``).
            The link **must** be forwarded verbatim to the user so they
@@ -252,8 +255,9 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
             scale: Cache-miss render scale (1.0 ≈ 96 DPI; clamped to
                 [0.5, 3.0]). Ignored on cache hit — zoom and fit/actual
                 toggles are client-side concerns.
-            mode: ``"url"`` (default, recommended) returns a stable
-                ``/api/visio/render`` URL that browsers can cache.
+            mode: ``"url"`` (default, recommended) returns a revisioned
+                ``/api/visio/render`` URL so repeated edits do not reuse a
+                stale browser-cached preview.
                 ``"data"`` inlines the PNG as a base64 data URI for
                 offline / log replay; it auto-falls-back to URL mode when
                 the payload would exceed the chat-friendly size cap.
@@ -282,8 +286,23 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
         except Exception as exc:
             return f"✗ Render failed: {exc}"
 
-        png_url, viewer_url = _build_links(target, page)
+        png_url, viewer_url = _build_links(target, page, result.get("key"))
         viewer_link = f"[Open interactive preview (fit window)]({viewer_url})"
+
+        def _inline_preview_markup(src: str) -> str:
+            safe_src = html_escape(src, quote=True)
+            safe_viewer = html_escape(viewer_url, quote=True)
+            return (
+                '<a href="'
+                f"{safe_viewer}"
+                '" target="_blank" rel="noopener noreferrer">'
+                '<img src="'
+                f"{safe_src}"
+                '" alt="Visio preview (fit window)" '
+                'style="display:block; max-width:100%; max-height:70vh; '
+                'width:auto; height:auto; object-fit:contain;" />'
+                "</a>"
+            )
 
         if mode == "data":
             png_bytes = result.get("bytes") or b""
@@ -292,7 +311,7 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
             if data_uri and len(data_uri) <= cap:
                 return (
                     "✓ Rendered (fit-window preview)\n\n"
-                    f"![Visio preview]({data_uri})\n\n"
+                    f"{_inline_preview_markup(data_uri)}\n\n"
                     f"{viewer_link}"
                 )
             # Data URI would blow the chat budget — fall back to the
@@ -300,13 +319,13 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
             # so the user retains full fit-window viewing.
             return (
                 "✓ Rendered (data URI too large; using URL)\n\n"
-                f"![Visio preview]({png_url})\n\n"
+                f"{_inline_preview_markup(png_url)}\n\n"
                 f"{viewer_link}"
             )
 
         return (
             "✓ Rendered (fit-window preview)\n\n"
-            f"![Visio preview]({png_url})\n\n"
+            f"{_inline_preview_markup(png_url)}\n\n"
             f"{viewer_link}"
         )
 
@@ -314,14 +333,14 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
 
 
 # ---------------------------------------------------------------------------
-# primary consolidated surface (exactly 15 tools)
+# primary consolidated surface (exactly 16 tools)
 # ---------------------------------------------------------------------------
 
 def get_consolidated_tools(
     visio_tools: "VisioTools",
     prompt_tools: "PromptTools",
 ) -> List[Callable]:
-    """Return the canonical 15-tool LLM-facing surface.
+    """Return the canonical 16-tool LLM-facing surface.
 
     Contract (see refine/CORE_CAPABILITIES.md §2 and MCP_CONTRACT.md):
       1.  recommend_template
@@ -332,13 +351,14 @@ def get_consolidated_tools(
       6.  open_document
       7.  create_from_template
       8.  save_document
-      9.  render_page
-      10. upsert_shape            (idempotent, key-based)
-      11. upsert_connector        (idempotent, edge-key based)
-      12. update_text
-      13. remove_shape            (with smart reconnect)
-      14. edit_shape              (position + size + style patch)
-      15. insert_from_stencil
+      9.  fit_page_to_drawing
+      10. render_page
+      11. upsert_shape            (idempotent, key-based)
+      12. upsert_connector        (idempotent, edge-key based)
+      13. update_text
+      14. remove_shape            (smart reconnect; connector IDs auto-route)
+      15. edit_shape              (position + size + style patch)
+      16. insert_from_stencil
     """
     return [
         # --- discovery / recommendation ---
@@ -352,6 +372,7 @@ def get_consolidated_tools(
         _rename(visio_tools.load_diagram, "open_document"),
         _rename(visio_tools.create_from_template_and_load, "create_from_template"),
         _rename(visio_tools.save_diagram, "save_document"),
+        _rename(visio_tools.fit_page_to_drawing, "fit_page_to_drawing"),
         _build_render_page(visio_tools),
         # --- mutation (idempotent only) ---
         _rename(visio_tools.add_or_update_shape, "upsert_shape"),
@@ -386,6 +407,7 @@ CONSOLIDATED_TOOL_NAMES = (
     "open_document",
     "create_from_template",
     "save_document",
+    "fit_page_to_drawing",
     "render_page",
     "upsert_shape",
     "upsert_connector",

@@ -11,14 +11,14 @@ required — operates directly on `.vsdx` files.
 agent/
 ├── apps/
 │   ├── agent_os.py          # ← canonical runtime entry (AgentOS + FastAPI)
-│   └── visio_agent.py       # agno Agent factory (injects the 15 tools)
+│   └── visio_agent.py       # agno Agent factory (injects the 16 tools)
 ├── visio_core/              # pure-Python core library (agno-free)
 │   ├── tools/               #   VisioTools / PromptTools / consolidated
 │   ├── templates/           #   TemplateManager / StencilManager
 │   ├── utils/               #   DiagramBuilder, rendering, matcher…
 │   ├── patches/             #   vsdx monkey-patches (explicit apply)
 │   └── api/                 #   FastAPI preview router
-├── visio_mcp/               # MCP layer (15-tool contract projection)
+├── visio_mcp/               # MCP layer (16-tool contract projection)
 │   ├── contract.py
 │   ├── server.py
 │   └── errors.py
@@ -62,7 +62,7 @@ python -m uvicorn apps.agent_os:app --reload
 `apps/agent_os.py` **explicitly** calls `visio_core.apply_patches()` on
 startup and ensures `.state/` and `outputs/` exist.
 
-## 🔧 Public tool surface (exactly 15)
+## 🔧 Public tool surface (exactly 16)
 
 The single source of truth is
 `visio_core/tools/consolidated.py::CONSOLIDATED_TOOL_NAMES`.
@@ -78,12 +78,13 @@ The single source of truth is
 | Document lifecycle | `open_document` | Open an existing document |
 |  | `create_from_template` | Create a new document from a named template |
 |  | `save_document` | Save; must be followed by `open_document` before reading connectors |
+|  | `fit_page_to_drawing` | Resize a page to fit all drawing content with margin |
 |  | `render_page` | Render a page as data URI or URL |
 | Idempotent editing | `upsert_shape` | Create/update a shape by `node_key` |
 |  | `upsert_connector` | Create/update a connector by `edge_key` |
 |  | `update_text` | Update text by id / key / match |
-|  | `remove_shape` | Remove a shape with smart reconnect |
-|  | `edit_shape` | Single patch `{position, size, style}` |
+|  | `remove_shape` | Remove a shape; connector IDs auto-route to connector deletion |
+|  | `edit_shape` | Single patch `{text, node_key, position, size, style}`; text is normalized to one line |
 |  | `insert_from_stencil` | Insert a master from a stencil |
 
 ## 🛠️ MCP layer
@@ -144,10 +145,12 @@ methods directly to an LLM.
 5. Mutate only via `upsert_shape` / `upsert_connector` /
    `update_text` / `remove_shape` / `edit_shape` /
    `insert_from_stencil`
-6. `save_document()` → **always** followed by `open_document(same_path)`
+6. Optionally call `fit_page_to_drawing(page=0, margin=0.5)` when the
+   drawing should expand the page bounds like Visio's fit-to-drawing
+7. `save_document()` → **always** followed by `open_document(same_path)`
    before reading connectors (protocol-enforced via
    `SAVE_REQUIRES_RELOAD`)
-7. `render_page(page=0, scale=2.0, mode="data")` (auto-falls back to
+8. `render_page(page=0, scale=2.0, mode="data")` (auto-falls back to
    `mode="url"` above 120 KB)
 
 ## 🖼️ Preview and rendering

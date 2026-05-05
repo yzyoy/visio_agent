@@ -26,17 +26,21 @@ exceptions below:
 4. **Open** — `open_document(path)` or `create_from_template(template,
    output_path)` once per session handle.
 5. **Mutate idempotently** — only call `upsert_shape`, `upsert_connector`,
-   `update_text`, `remove_shape`, `edit_shape`, or
-   `insert_from_stencil`. The non-idempotent legacy names
+   `update_text`, `remove_shape`, `edit_shape`,
+   `fit_page_to_drawing`, or `insert_from_stencil`. The non-idempotent legacy names
    (`add_shape`, `connect_shapes`) do not exist on the MCP surface.
-   `edit_shape(selector, patch)` accepts a single dict with any subset of
-   `{position, size, style}`; see `MCP_CONTRACT.md` for the
+  `edit_shape(selector, patch)` accepts a single dict with any subset of
+  `{text, node_key, position, size, style}`; text updates are normalized
+  to a single line; see `MCP_CONTRACT.md` for the
    schema.
-6. **Save + reload ritual** — `save_document()` then
+6. **Fit page when needed** — call `fit_page_to_drawing(page=0, margin=0.5)`
+   before saving when shapes extend beyond the visible page and you want
+   Visio-like "Fit to Drawing" behavior.
+7. **Save + reload ritual** — `save_document()` then
    `open_document(same_path)` before any connector verification. This is
    the diary 11/13 lesson, now enforced at the protocol level through
    the `SAVE_REQUIRES_RELOAD` error code.
-7. **Render and surface preview** — `render_page(page=0, scale=2.0,
+8. **Render and surface preview** — `render_page(page=0, scale=2.0,
    mode="url")` to confirm. The tool returns **two artefacts in a single
    reply**: an inline fit-window image *and* a markdown link to the
    interactive viewer (`/api/visio/preview?path=...`). Both are funnelled
@@ -86,6 +90,7 @@ exceptions below:
 
 ## 4. Output conventions
 
+- **Execute; do not default to pasting a full multi-step "Visio prompt" script** unless the user explicitly asks for copy-paste instructions. Follow `visio-prompt-generation` internally, call tools in order, and surface paths + preview links.
 - Generated files go to `outputs/<session>/` (gitignored). The agno
   shell supplies the session id.
 - **Preview link is mandatory.** Every reply that produces, edits, or
