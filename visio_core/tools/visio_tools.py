@@ -723,7 +723,7 @@ class VisioTools:
 
         return self._remove_connector_with_logging(connector_id, operation="remove_connector")
     
-    def remove_shape_smart(self, shape_identifier: str, reconnect_mode: str = "smart_reconnect") -> str:
+    def remove_shape_smart(self, shape_identifier: str, reconnect_mode: str = "remove_connectors") -> str:
         """
         Remove a shape with advanced connector management options.
         智能删除形状，自动处理连接线。
@@ -734,17 +734,17 @@ class VisioTools:
         Args:
             shape_identifier: ID or NodeKey of the shape or connector to remove
             reconnect_mode: Connector handling mode:
-                - "smart_reconnect": Automatically reconnect through deleted shape (recommended)
-                - "remove_connectors": Remove all connected connectors 
+                - "remove_connectors": Remove connected connectors only (default, safest for scoped deletions)
+                - "smart_reconnect": Reconnect through the deleted shape when the user explicitly wants to preserve flow
                 - "validate_only": Check if safe to remove without actually removing
         
         Returns:
             Status message with details
         
         Example:
-            remove_shape_smart("7")  # By shape ID
+            remove_shape_smart("7")  # By shape ID, conservative connector cleanup
             remove_shape_smart("nodeA")  # By node key
-            remove_shape_smart("7", "remove_connectors")
+            remove_shape_smart("7", "smart_reconnect")
         """
         err = self._ensure_loaded_or_error("✗ No diagram loaded. Use load_diagram first.")
         if err:

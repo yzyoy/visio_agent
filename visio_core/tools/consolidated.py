@@ -356,7 +356,7 @@ def get_consolidated_tools(
       11. upsert_shape            (idempotent, key-based)
       12. upsert_connector        (idempotent, edge-key based)
       13. update_text
-      14. remove_shape            (smart reconnect; connector IDs auto-route)
+      14. remove_shape            (conservative connector cleanup by default; smart reconnect via reconnect_mode)
       15. edit_shape              (position + size + style patch)
       16. insert_from_stencil
     """

@@ -87,6 +87,11 @@ exceptions below:
    assume some connectors may still carry deleted `Sheet.<id>` refs.
    Rely on the strengthened connector cleanup or an explicit orphan
    scan, not on "shape removed" wording alone.
+8. **Scoped deletions must stay scoped.** When the user asks to delete
+   only part of a page, default to `remove_shape(...,
+   reconnect_mode="remove_connectors")`; do not use smart reconnection
+   unless the user explicitly wants preserved flow. Shared titles,
+   containers, and connectors that still serve kept content must remain.
 
 ## 4. Output conventions
 

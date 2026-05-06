@@ -4,6 +4,7 @@ Enhanced with professional layout and print-ready quality features
 Supports idempotent operations with key-based shape identity
 """
 import os
+import time
 from typing import Optional, List, Dict, Any, Tuple, Iterable, Set
 import re
 from typing import Pattern
@@ -54,6 +55,11 @@ class DiagramBuilder:
 
         # Last connector failure detail (set by connect_shapes) for tool/logging diagnostics
         self.last_connector_error: Optional[str] = None
+
+        # Repeated remove_shape calls within a short window are treated as a bulk delete session.
+        self._delete_activity_window_seconds = 1.25
+        self._bulk_delete_threshold = 3
+        self._recent_delete_timestamps: List[float] = []
     
     @classmethod
     def load_from_file(cls, filepath: str) -> 'DiagramBuilder':
@@ -79,6 +85,8 @@ class DiagramBuilder:
         if self.visio_file:
             page = self.visio_file.add_page(page_name)
             self.current_page = page
+            self._invalidate_template_cache()
+            self.edge_manager.invalidate_edge_inventory()
             return page
     
     def get_page(self, index: int = 0):
@@ -86,6 +94,7 @@ class DiagramBuilder:
         if self.visio_file and self.visio_file.pages:
             self.current_page = self.visio_file.pages[index]
             self._invalidate_template_cache()  # Cache invalidation on page change
+            self.edge_manager.invalidate_edge_inventory()
             return self.current_page
         return None
     
@@ -93,6 +102,19 @@ class DiagramBuilder:
         """Invalidate the template catalog cache"""
         self._template_catalog_cache = None
         self._catalog_cache_page_id = None
+
+    def _classify_delete_activity(self) -> str:
+        """Classify the current delete as a single delete or part of a bulk burst."""
+        now = time.monotonic()
+        cutoff = now - self._delete_activity_window_seconds
+        self._recent_delete_timestamps = [
+            ts for ts in self._recent_delete_timestamps
+            if ts >= cutoff
+        ]
+        self._recent_delete_timestamps.append(now)
+        if len(self._recent_delete_timestamps) >= self._bulk_delete_threshold:
+            return 'bulk'
+        return 'single'
     
     def _get_cached_template_catalog(self) -> Dict[str, List[Any]]:
         """
@@ -1111,6 +1133,8 @@ class DiagramBuilder:
             print(f"Error: Cannot remove connector '{shape_id}' via remove_shape. Use remove_connector instead.")
             return False, "IS_CONNECTOR"
 
+        delete_mode = self._classify_delete_activity()
+
         try:
             # Use edge-centric manager for precise edge handling
             edge_results = self.edge_manager.handle_shape_deletion(
@@ -1136,12 +1160,26 @@ class DiagramBuilder:
 
             # Template cleanup can leave half-connected or formula-only orphan
             # connectors behind; remove them before rebuilding inventory.
-            orphaned_removed = self.cleanup_orphaned_connectors()
+            connected_edge_ids = {
+                str(edge_id)
+                for edge_id in edge_results.get('connected_edge_ids', [])
+                if edge_id is not None
+            }
+            if delete_mode == 'bulk':
+                orphaned_removed = self.cleanup_orphaned_connectors(
+                    candidate_connector_ids=connected_edge_ids
+                )
+            else:
+                orphaned_removed = self.cleanup_orphaned_connectors()
             if orphaned_removed:
                 print(f"Removed {orphaned_removed} orphaned connectors after shape deletion")
 
-            # Rebuild edge inventory after changes
-            self.edge_manager.build_edge_inventory(force_rebuild=True)
+            # Single deletes keep the conservative full rebuild path. Bulk deletes
+            # stay precise by updating only the affected edge records in-place.
+            if delete_mode == 'bulk':
+                self.edge_manager.update_inventory_after_shape_deletion(shape_id, edge_results)
+            else:
+                self.edge_manager.build_edge_inventory(force_rebuild=True)
 
             return True, ""
 
@@ -1170,6 +1208,7 @@ class DiagramBuilder:
         
         try:
             connector.remove()
+            self.edge_manager.update_inventory_after_connector_removal(connector_id)
             return True
         except Exception as e:
             print(f"Error removing connector: {e}")
@@ -1327,7 +1366,22 @@ class DiagramBuilder:
 
         return references
 
-    def get_connector_reference_summary(self, connector: Any) -> Dict[str, Any]:
+    def _collect_existing_shape_ids(self) -> Set[str]:
+        """Return current page shape ids once for connector validation work."""
+        existing_shape_ids: Set[str] = set()
+        if not self.current_page:
+            return existing_shape_ids
+
+        for shape in self.current_page.child_shapes:
+            shape_id = getattr(shape, 'ID', None)
+            if shape_id is not None:
+                existing_shape_ids.add(str(shape_id))
+
+        return existing_shape_ids
+
+    def get_connector_reference_summary(
+        self, connector: Any, existing_shape_ids: Optional[Set[str]] = None
+    ) -> Dict[str, Any]:
         """Summarize a connector's endpoint and formula-based shape references."""
         endpoints = self._get_connector_endpoints(connector)
         connect_refs: Set[str] = set()
@@ -1349,12 +1403,8 @@ class DiagramBuilder:
         if endpoints['target']:
             referenced_shape_ids.add(endpoints['target'])
 
-        existing_shape_ids = set()
-        if self.current_page:
-            for shape in self.current_page.child_shapes:
-                shape_id = getattr(shape, 'ID', None)
-                if shape_id is not None:
-                    existing_shape_ids.add(str(shape_id))
+        if existing_shape_ids is None:
+            existing_shape_ids = self._collect_existing_shape_ids()
 
         missing_shape_ids = {
             shape_id for shape_id in referenced_shape_ids
@@ -1370,25 +1420,47 @@ class DiagramBuilder:
             'missing_shape_ids': missing_shape_ids,
         }
     
-    def cleanup_orphaned_connectors(self) -> int:
+    def cleanup_orphaned_connectors(
+        self, candidate_connector_ids: Optional[Set[str]] = None
+    ) -> int:
         """
         Find and remove connectors that reference non-existent shapes.
-        
+
+        Args:
+            candidate_connector_ids: Optional connector ID subset. When provided,
+                only these connectors are inspected, which is much faster for
+                bulk shape deletions.
+
         Returns:
             Number of orphaned connectors removed
         """
         if not self.current_page:
             return 0
-        
+
+        if candidate_connector_ids is not None and not candidate_connector_ids:
+            return 0
+
         orphaned_count = 0
         connectors_to_remove = []
-        
+        candidate_ids = (
+            {str(connector_id) for connector_id in candidate_connector_ids}
+            if candidate_connector_ids is not None else None
+        )
+        existing_shape_ids = self._collect_existing_shape_ids()
+
         for connector in self.current_page.child_shapes:
             if not self._is_connector(connector):
                 continue
-            
+
+            connector_id = str(getattr(connector, 'ID', ''))
+            if candidate_ids is not None and connector_id not in candidate_ids:
+                continue
+
             try:
-                reference_summary = self.get_connector_reference_summary(connector)
+                reference_summary = self.get_connector_reference_summary(
+                    connector,
+                    existing_shape_ids=existing_shape_ids,
+                )
                 has_missing_refs = bool(reference_summary['missing_shape_ids'])
                 has_partial_attachment = bool(reference_summary['referenced_shape_ids']) and not (
                     reference_summary['source'] and reference_summary['target']

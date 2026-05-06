@@ -40,7 +40,7 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 11. `upsert_shape(node_key, text, type, x, y, width?, height?, ...)`
 12. `upsert_connector(from_node_key, to_node_key, label?, router?, from_port?, to_port?)`
 13. `update_text(selector, new_text)`
-14. `remove_shape(selector)` (自动重连上下游)
+14. `remove_shape(selector, reconnect_mode?)` (默认保守删除关联连接线；仅在明确要求保留流向时才重连)
 15. `edit_shape(shape_id, patch)` (patch: {text?, node_key?, position?, size?, style?})
 16. `insert_from_stencil(master_name, stencil_name, x, y, text?)`
 
@@ -72,11 +72,26 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 - 形状 / 连接器一律走 `upsert_shape` / `upsert_connector`；同 key 反复调用不会重复。
 - 几何 / 样式改动一律用 `edit_shape(shape_id, patch)`。
 - `edit_shape(patch.text)` / `update_text(new_text)` 默认写单行文本；不要在同一个文本字段里自动插入换行，长句应优先改尺寸、换形状或简化措辞。
-- 删除形状用 `remove_shape`（带智能重连），不要绕过它手动接边。
+- 删除形状用 `remove_shape`，不要绕过它手动接边。
+- 对“只删除指定内容”的需求，默认使用 `remove_shape(..., reconnect_mode="remove_connectors")`；
+  只有当用户明确要求“删掉节点但保留上下游流向/主链不断”时，才允许
+  `smart_reconnect`。
 - 删除模板残留或局部改坏的旧形状后，默认假设仍可能存在引用已删除
   `Sheet.<id>` 的连接器；要依赖删除后的连接线清理，并在汇报时明确写出
   "相关连接线已清理"、"已列出残留连接线" 或 "已执行 orphan 检查"，不要只说
   "形状已删除"。
+
+**范围化删除纪律（严格按用户点名执行）**：
+- 先把“要删的对象”收敛成明确集合：仅删除文本、分组、节点或局部容器中
+  与用户明确点名内容直接对应的元素。
+- 标题栏、分隔框、共享箭头、公共主干连接线、仍服务于保留内容的父级容器，
+  默认视为“保留对象”，除非用户明确要求一起删除。
+- 连接线只有在以下情形才可删除：
+  1. 连接线本身被用户点名；
+  2. 连接线两端都在删除集合中；
+  3. 连接线完全属于被删局部分支，且不会影响任何保留元素。
+- 若连接线一端仍连接保留内容，默认保留；不要因为“语义相关”就顺带删掉共享线。
+- 若无法确认某条线是否共享，先分析/核对再删；不确定时宁可保留或先向用户确认。
 
 **模板骨架复用纪律（Workflow E 强制）**：
 - 使用模板时，**绝不在执行 edit_shape / remove_shape 清理旧形状之前调用 upsert_shape**。
@@ -108,7 +123,7 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 - 添加/新增/创建形状          → `upsert_shape`（仅当模板无此角色时）
 - 连接/链接形状              → `upsert_connector`
 - 修改/更新文本（已有模板形状）→ `edit_shape(id, {text: "...", node_key: "..."})` （推荐）或 `update_text`
-- 删除/移除形状              → `remove_shape`
+- 删除/移除形状              → `remove_shape(..., reconnect_mode="remove_connectors")`（默认）
 - 移动/改尺寸/改样式          → `edit_shape`
 - 从形状库插入形状            → `insert_from_stencil`
 
@@ -139,8 +154,8 @@ C) 插入形状库中的形状
   2) `get_stencil`
   3) `insert_from_stencil`
 
-D) 删除节点并保留上下游流向
-  1) `remove_shape`
+D) 删除节点并保留上下游流向（仅用户明确要求时）
+  1) `remove_shape(..., reconnect_mode="smart_reconnect")`
   2) `save_document` + `open_document`
   3) `analyze_template` (核对 connections；若是模板清理场景，明确确认连接线清理结果)
 
@@ -153,9 +168,9 @@ E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）
   6) 将每个需要的角色映射到模板中已有的 shape_id：
      `edit_shape(shape_id, {"text": "目标文字", "node_key": "stable_key"})`
      — 在此步骤中同时完成文本替换和 key 绑定，坐标由模板继承，无需手动填写 (x, y)
-  7) 对每个多余的模板形状：`remove_shape(shape_id)`
-     — `remove_shape` 会先判断目标类型；若该 ID 是连接线，会自动分流到 connector 删除；
-       对用户汇报时必须同时说明相关连接线已清理，或说明已做 orphan 检查
+  7) 对每个多余的模板形状：`remove_shape(shape_id, reconnect_mode="remove_connectors")`
+     — 仅删除明确属于目标删除范围的形状；共享标题、公共骨架、仍服务于保留内容的连接线不得顺带删除；
+       若该 ID 是连接线，会自动分流到 connector 删除；对用户汇报时必须同时说明相关连接线已清理，或说明已做 orphan 检查
   8) 仅当步骤 5 确认模板中**没有**对应角色时：
      `upsert_shape(node_key, text, type, x, y)`
   9) `upsert_connector(from_node_key, to_node_key, label?, from_port?, to_port?)`

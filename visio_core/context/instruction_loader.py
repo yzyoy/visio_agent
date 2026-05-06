@@ -6,7 +6,7 @@ The runtime model context is assembled from ``skills/<name>/SKILL.md``.
 the old instruction-template names.
 """
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class InstructionLoader:
@@ -54,7 +54,7 @@ class InstructionLoader:
             "template_evaluation": "visio-template-evaluation",
         }
         self.available_templates = dict(self.template_to_skill)
-        self._cache: Dict[str, str] = {}
+        self._cache: Dict[str, Tuple[int, str]] = {}
 
     def load_skill(self, skill_name: str) -> str:
         """
@@ -69,13 +69,15 @@ class InstructionLoader:
         """
         folder_name = self.available_skills.get(skill_name, skill_name)
         cache_key = f"skill:{folder_name}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
         filepath = self.skills_dir / folder_name / "SKILL.md"
         try:
+            mtime_ns = filepath.stat().st_mtime_ns
+            cached = self._cache.get(cache_key)
+            if cached and cached[0] == mtime_ns:
+                return cached[1]
+
             content = filepath.read_text(encoding="utf-8").strip()
-            self._cache[cache_key] = content
+            self._cache[cache_key] = (mtime_ns, content)
             return content
         except Exception as e:
             print(f"❌ 加载 Skill 失败 '{folder_name}': {e}")
@@ -88,10 +90,6 @@ class InstructionLoader:
         The returned content is derived from skill files. Internal LLM prompts
         keep the old placeholder contract used by ``SmartMatcher``.
         """
-        cache_key = f"template:{template_name}"
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
         skill_name = self.template_to_skill.get(template_name)
         if not skill_name:
             print(f"⚠️ 警告: 未知的指令名称 '{template_name}'")
@@ -106,7 +104,6 @@ class InstructionLoader:
         elif template_name == "template_evaluation":
             content = self._build_template_evaluation_prompt(content)
 
-        self._cache[cache_key] = content
         return content
 
     def build_instructions(

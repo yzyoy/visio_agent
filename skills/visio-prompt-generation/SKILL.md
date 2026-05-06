@@ -83,11 +83,15 @@ edit_shape("<id-from-analysis>", patch={"text": "验证身份信息",     "node_
 edit_shape("<id-from-analysis>", patch={"text": "信息是否通过验证？","node_key": "decision_pass"})
 # ... 继续处理其他模板形状 ...
 
-# Step 4: 删除多余的模板形状
+# Step 4: 删除多余的模板形状（严格按用户点名范围执行）
+# 先收敛出“明确要删”的 shape/connector 集合；不要把共享标题、公共主干、
+# 仍服务于保留内容的父容器或连接线一起删除
 # remove_shape 会先判断目标类型；若命中 connector，会自动分流到连接线删除
+# 默认使用 remove_connectors，只有在用户明确要求“删节点但保留上下游流向”时
+# 才允许 smart_reconnect
 # 删除模板形状后，不要把“shape 已删除”当成连接线已经干净的同义词；
 # 交付说明里必须明确写出相关连接器已清理，或说明已做 orphan 检查
-remove_shape("<extra-shape-id>")
+remove_shape("<extra-shape-id>", reconnect_mode="remove_connectors")
 
 # Step 5: 仅为在模板中确认缺席的角色添加新形状
 upsert_shape(node_key="new_node", text="新增节点", type="Rectangle", x=4.0, y=2.0)
@@ -146,6 +150,8 @@ render_page(page=0, scale=2.0, mode="url")  # 默认 url 模式，PNG 与 /api/v
 - 不得把裸 `shape_id`（如 "254"）直接传给 `upsert_connector`；
 - 最终图中的形状总数不得超过模板原有形状数 + 新增必要角色数（防止重复堆叠）。
 - 任何模板清理 / `remove_shape` 场景都要把 connector cleanup 写进说明：默认假设旧连接线可能仍引用已删除 `Sheet.<id>`，直到清理或 orphan 检查明确确认。
+- 对“删除部分内容”的需求，连接线只有在被用户点名、两端都属于删除集合，或可确认完全属于被删局部分支时才删除；一端仍服务保留内容时默认保留。
+- 未经用户明确要求，不得使用 `smart_reconnect` 改写原有流向；默认走 `reconnect_mode="remove_connectors"`。
 
 ## 步骤 6：交付（执行优先）
 - **默认**：交付物是 **已写入的 `.vsdx` 路径** + **预览 Markdown 链接**（模板候选阶段对每个 `.vsdx` 候选仍应用 `[文件名](http://localhost:7777/api/visio/preview?path=...)` 说明布局）；完成编辑后按 `visio-core-execution` 提供输出文件的预览链接。

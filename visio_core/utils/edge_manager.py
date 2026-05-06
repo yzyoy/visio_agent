@@ -69,6 +69,103 @@ class EdgeCentricManager:
         self.diagram_builder = diagram_builder
         self._edge_inventory: Optional[EdgeInventory] = None
         self._validation_errors: List[str] = []
+
+    def invalidate_edge_inventory(self) -> None:
+        """Drop the cached edge inventory for the current page."""
+        self._edge_inventory = None
+
+    def _discard_from_index(self, index: Dict[str, Set[str]], shape_id: Optional[str], edge_id: str) -> None:
+        """Remove an edge id from an index and prune empty buckets."""
+        if not shape_id:
+            return
+        bucket = index.get(str(shape_id))
+        if not bucket:
+            return
+        bucket.discard(edge_id)
+        if not bucket:
+            index.pop(str(shape_id), None)
+
+    def _store_edge_metadata(self, inventory: EdgeInventory, edge_meta: EdgeMetadata) -> None:
+        """Insert or replace one edge in the cached inventory."""
+        edge_id = str(edge_meta.edge_id)
+        previous = inventory.edges.get(edge_id)
+        if previous is not None:
+            self._drop_edge_from_inventory(inventory, edge_id)
+
+        inventory.edges[edge_id] = edge_meta
+
+        for shape_id in edge_meta.referenced_shape_ids:
+            inventory.shape_to_edges.setdefault(str(shape_id), set()).add(edge_id)
+
+        if edge_meta.source_id:
+            inventory.source_to_edges.setdefault(str(edge_meta.source_id), set()).add(edge_id)
+
+        if edge_meta.target_id:
+            inventory.target_to_edges.setdefault(str(edge_meta.target_id), set()).add(edge_id)
+
+    def _drop_edge_from_inventory(self, inventory: EdgeInventory, edge_id: str) -> None:
+        """Remove one edge from the cached inventory."""
+        edge_meta = inventory.edges.pop(edge_id, None)
+        if edge_meta is None:
+            return
+
+        for shape_id in edge_meta.referenced_shape_ids:
+            self._discard_from_index(inventory.shape_to_edges, str(shape_id), edge_id)
+
+        self._discard_from_index(inventory.source_to_edges, edge_meta.source_id, edge_id)
+        self._discard_from_index(inventory.target_to_edges, edge_meta.target_id, edge_id)
+
+    def update_inventory_after_connector_removal(self, connector_id: str) -> bool:
+        """Incrementally prune one removed connector from the cached inventory."""
+        if self._edge_inventory is None:
+            return False
+
+        self._drop_edge_from_inventory(self._edge_inventory, str(connector_id))
+        return True
+
+    def update_inventory_after_shape_deletion(self, shape_id: str, edge_results: Dict[str, Any]) -> bool:
+        """Incrementally update cached inventory after removing one shape."""
+        inventory = self._edge_inventory
+        if inventory is None:
+            return False
+
+        deleted_shape_id = str(shape_id)
+        removed_edge_ids = {
+            str(edge_id)
+            for edge_id in edge_results.get('connected_edge_ids', [])
+            if edge_id is not None
+        }
+        removed_edge_ids.update(
+            str(edge_id)
+            for edge_id in edge_results.get('edges_removed', [])
+            if edge_id is not None
+        )
+
+        for edge_id in removed_edge_ids:
+            self._drop_edge_from_inventory(inventory, edge_id)
+
+        inventory.shape_to_edges.pop(deleted_shape_id, None)
+        inventory.source_to_edges.pop(deleted_shape_id, None)
+        inventory.target_to_edges.pop(deleted_shape_id, None)
+
+        for reconnect_info in edge_results.get('edges_reconnected', []):
+            new_edge_id = reconnect_info.get('new_edge')
+            if new_edge_id is None:
+                continue
+
+            connector = self.diagram_builder.get_shape_by_id(str(new_edge_id))
+            if connector is None:
+                self.invalidate_edge_inventory()
+                return False
+
+            edge_meta = self._extract_edge_metadata(connector)
+            if edge_meta is None:
+                self.invalidate_edge_inventory()
+                return False
+
+            self._store_edge_metadata(inventory, edge_meta)
+
+        return True
         
     def build_edge_inventory(self, force_rebuild: bool = False) -> EdgeInventory:
         """
@@ -97,24 +194,8 @@ class EdgeCentricManager:
             try:
                 edge_meta = self._extract_edge_metadata(shape)
                 if edge_meta:
-                    inventory.edges[edge_meta.edge_id] = edge_meta
-                    
-                    # Update index mappings
-                    for shape_id in edge_meta.referenced_shape_ids:
-                        if shape_id not in inventory.shape_to_edges:
-                            inventory.shape_to_edges[shape_id] = set()
-                        inventory.shape_to_edges[shape_id].add(edge_meta.edge_id)
-                    
-                    if edge_meta.source_id:
-                        if edge_meta.source_id not in inventory.source_to_edges:
-                            inventory.source_to_edges[edge_meta.source_id] = set()
-                        inventory.source_to_edges[edge_meta.source_id].add(edge_meta.edge_id)
-                    
-                    if edge_meta.target_id:
-                        if edge_meta.target_id not in inventory.target_to_edges:
-                            inventory.target_to_edges[edge_meta.target_id] = set()
-                        inventory.target_to_edges[edge_meta.target_id].add(edge_meta.edge_id)
-                    
+                    self._store_edge_metadata(inventory, edge_meta)
+
             except Exception as e:
                 logger.warning(f"Failed to extract edge metadata: {e}")
                 
@@ -326,6 +407,7 @@ class EdgeCentricManager:
             'edges_removed': [],
             'edges_reconnected': [],
             'edges_orphaned': [],
+            'connected_edge_ids': [],
             'errors': []
         }
         
@@ -333,6 +415,7 @@ class EdgeCentricManager:
         
         # Find all edges connected to the shape
         connected_edge_ids = inventory.shape_to_edges.get(shape_id, set())
+        results['connected_edge_ids'] = sorted(str(edge_id) for edge_id in connected_edge_ids)
         
         if reconnect_strategy == 'smart':
             # Categorize edges

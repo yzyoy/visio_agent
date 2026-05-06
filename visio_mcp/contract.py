@@ -121,7 +121,7 @@ _SPEC_TABLE: Dict[str, Dict[str, Any]] = {
         error_codes=(ErrorCode.SELECTOR_NOT_FOUND.value,),
     ),
     "remove_shape": dict(
-        summary="Remove a shape with smart reconnection; connector IDs auto-route to connector deletion.",
+        summary="Remove a shape with conservative connector cleanup by default; use smart reconnection only when explicitly requested.",
         idempotent=True, mutates=True,
         error_codes=(ErrorCode.SELECTOR_NOT_FOUND.value,),
     ),
