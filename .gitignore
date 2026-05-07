@@ -115,6 +115,7 @@ MCP_CONTRACT.md
 scripts/
 tests/
 refine/
+材料/
 
 # -------- Third-party clones (research deploy experiments) --------
 third_party/

@@ -1,0 +1,12 @@
+{
+  "name": "visio-agent-mermaid",
+  "private": true,
+  "description": "Local Mermaid CLI (mmdc) for exporting SVG/PNG from .md or .mmd",
+  "scripts": {
+    "export:figures": "mmdc -i figures.md -a dist -e png",
+    "export:figures-svg": "mmdc -i figures.md -a dist -e svg"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.4.2"
+  }
+}
