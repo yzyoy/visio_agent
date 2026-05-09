@@ -13,7 +13,7 @@ $py.class
 .mypy_cache/
 .ruff_cache/
 build/
-dist/
+release/
 .tox/
 .nox/
 pip-wheel-metadata/
@@ -108,6 +108,7 @@ wheels/
 
 # -------- Assets --------
 assets/templates/
+
 
 # -------- Local-only paths --------
 TODO.md

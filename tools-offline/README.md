@@ -11,7 +11,7 @@
 
 水印检测默认对 **上述两种** 扩展名生效（`.vsdx,.vssx`，可用 `--ext` 覆盖）。它们并非仅限 stencil 的工具。
 
-`assets/templates/` 下的常见目录布局如下（若你的仓库路径不同，请自行替换）：
+`assets/templates/` 下的常见目录布局与「应放到哪」的说明：**[`../assets/README.md`](../assets/README.md)**。摘要：
 
 | 路径 | 用途 |
 |------|------|
@@ -25,8 +25,25 @@
 ## 包结构
 
 - **`library_maintenance/`** — `detect_watermarks`、`prune_library`、`regenerate_indexes`。
+- **`package_assets_release.py`** — 打 Release 用资产 zip，或**校验并解压**官方包到仓库根（见下一节）。
 
 可通过 **脚本路径** 调用（下文示例），或在仓库根目录使用 **`python -m tools-offline.library_maintenance.<模块名>`** —— 当当前目录在 `sys.path` 中时，带连字符的文件夹名会作为包被正确解析。
+
+## Release 资产 zip（`package_assets_release.py`）
+
+脚本会打包 **`assets/templates/`** 与 **`assets/indexes/`**（条目在 zip 内为 **`assets/templates/...`、`assets/indexes/...`**，相对仓库根、无磁盘盘符前缀）。解压后实际落盘位置与目录树见 **[`../assets/README.md`](../assets/README.md)**。
+
+解压时必须把内容展开到 **仓库根**（与 `apps/`、`assets/` 同级），这样在磁盘上看到 **`(<仓库根>/assets/templates/...)`**；若误解压到多一层文件夹，会变成 **`(<某文件夹>/assets/...)`**，需按 `assets/README.md` 合并到本仓库的 `assets/` 下。
+
+```bash
+# 在仓库根目录执行（--repo-root 默认即为当前仓库根）
+python tools-offline/package_assets_release.py --extract path/to/visio-assets-release.zip
+
+# 打包（默认输出 dist/visio-assets-release.zip）
+python tools-offline/package_assets_release.py --out release/visio-assets-release.zip
+```
+
+`--extract` 会校验 zip 内路径均在 **`assets/`** 下、无 `..` 穿越，再放行写入。
 
 ## 推荐流程（水印审计 → 剔除 → 重建索引）
 
