@@ -10,7 +10,7 @@
 2. **恢复资产（推荐）**  
    仓库默认不包含大体量模板与索引；仅克隆代码时，`recommend_template` / `search_templates` / `search_stencils` 等行为与完整环境不一致。解压或合并后的文件必须落在 **`assets/templates/`** 与 **`assets/indexes/`**（详解见 **[`assets/README.md`](assets/README.md)**）。  
    **与资产、模板库、发行包相关的说明性 Markdown（`.md`）必须放在 `assets/` 下**（例如 [`assets/README.md`](assets/README.md)），不要散落到仓库其他目录，以免与 **`visio-assets-release.zip`** 的布局和维护脚本不一致。
-   - 打开 [**GitHub Releases**](https://github.com/xuxue152/visio_agent_new/releases)，下载 **`visio-assets-release.zip`**（约 1.5 GiB，以 Release 页为准）。
+   - 打开 [**GitHub Releases**]((https://github.com/yzyoy/visio_agent/releases))，下载 **`visio-assets-release.zip`**（约 1.5 GiB，以 Release 页为准）。
    - **解压目标：** 解压到 **仓库根目录**（包含 `apps/`、`assets/` 的那一层）。zip 内的相对路径形如 `assets/templates/...`、`assets/indexes/...`，解压完成后磁盘上应为 **`<repo>/assets/templates/`**、**`<repo>/assets/indexes/`**。若解压到新建的子文件夹（例如只选中 zip 解压到「`visio-assets-release/`」），会得到 **`.../visio-assets-release/assets/...`**，需把 **`assets`** 挪到仓库根下与 `apps` 并列，或使用下方命令指定根目录。
    - 推荐在本仓库根执行（`--repo-root` 默认为该根目录）：
 
