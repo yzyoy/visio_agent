@@ -7,6 +7,7 @@ import os
 import time
 from typing import Optional, List, Dict, Any, Tuple, Iterable, Set
 import re
+import uuid
 from typing import Pattern
 from vsdx import VisioFile
 from .layout_config import (
@@ -103,6 +104,163 @@ class DiagramBuilder:
         self._template_catalog_cache = None
         self._catalog_cache_page_id = None
 
+    def _shape_cell_float(
+        self,
+        shape: Any,
+        cell_name: str,
+        attr_name: str,
+        default: Optional[float],
+    ) -> Optional[float]:
+        """Read a live numeric shape cell, falling back to wrapper attrs."""
+        try:
+            if hasattr(shape, "cell_value"):
+                value = shape.cell_value(cell_name)
+                if value not in (None, ""):
+                    return float(value)
+        except Exception:
+            pass
+        try:
+            value = getattr(shape, attr_name, None)
+            if value not in (None, ""):
+                return float(value)
+        except Exception:
+            pass
+        return default
+
+    def _clamp_shape_center_to_page(
+        self,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        margin: float = 0.25,
+    ) -> Tuple[float, float]:
+        """Clamp a shape center so the full shape remains on the page."""
+        try:
+            page_width = float(getattr(self.current_page, "width", 0) or 0)
+            page_height = float(getattr(self.current_page, "height", 0) or 0)
+        except Exception:
+            page_width = 0
+            page_height = 0
+        if page_width <= 0 or page_height <= 0:
+            return validate_position(x, y)
+
+        half_w = max(0.0, float(width or 0) / 2.0)
+        half_h = max(0.0, float(height or 0) / 2.0)
+        min_x = min(page_width, margin + half_w)
+        max_x = max(min_x, page_width - margin - half_w)
+        min_y = min(page_height, margin + half_h)
+        max_y = max(min_y, page_height - margin - half_h)
+        return (max(min_x, min(float(x), max_x)), max(min_y, min(float(y), max_y)))
+
+    def _next_shape_id(self) -> str:
+        max_id = 0
+        try:
+            for shape in self.current_page.child_shapes:
+                try:
+                    max_id = max(max_id, int(getattr(shape, "ID", 0) or 0))
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return str(max_id + 1)
+
+    def _add_basic_shape_xml(
+        self,
+        text: str,
+        shape_type: str,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+    ) -> Optional[Any]:
+        """Create a plain VSDX shape when a page has no cloneable template."""
+        if not self.current_page:
+            return None
+        try:
+            import xml.etree.ElementTree as ET
+
+            ns_uri = "http://schemas.microsoft.com/office/visio/2012/main"
+            ns = f"{{{ns_uri}}}"
+            page_root = (
+                self.current_page.xml
+                if hasattr(self.current_page.xml, "tag")
+                else self.current_page.xml.getroot()
+            )
+            shapes_elem = page_root.find(f"{ns}Shapes")
+            if shapes_elem is None:
+                shapes_elem = page_root.find("Shapes")
+            if shapes_elem is None:
+                shapes_elem = ET.SubElement(page_root, f"{ns}Shapes")
+
+            width = snap_to_grid(float(width or 1.5))
+            height = snap_to_grid(float(height or 0.75))
+            x = snap_to_grid(float(x or 0))
+            y = snap_to_grid(float(y or 0))
+            x, y = self._clamp_shape_center_to_page(x, y, width, height)
+
+            shape_id = self._next_shape_id()
+            shape_elem = ET.SubElement(
+                shapes_elem,
+                f"{ns}Shape",
+                {
+                    "ID": shape_id,
+                    "NameU": normalize_shape_type(shape_type or "Rectangle"),
+                    "Type": "Shape",
+                    "LineStyle": "3",
+                    "FillStyle": "3",
+                    "TextStyle": "3",
+                    "UniqueID": f"{{{str(uuid.uuid4()).upper()}}}",
+                },
+            )
+            xform = ET.SubElement(shape_elem, f"{ns}XForm")
+            for name, value in (
+                ("PinX", x),
+                ("PinY", y),
+                ("Width", width),
+                ("Height", height),
+                ("LocPinX", width / 2.0),
+                ("LocPinY", height / 2.0),
+                ("Angle", 0),
+            ):
+                ET.SubElement(xform, f"{ns}Cell", {"N": name, "V": str(value)})
+
+            line = ET.SubElement(shape_elem, f"{ns}Line")
+            ET.SubElement(line, f"{ns}Cell", {"N": "LinePattern", "V": "1"})
+            ET.SubElement(line, f"{ns}Cell", {"N": "LineWeight", "V": "0.01388889"})
+            ET.SubElement(line, f"{ns}Cell", {"N": "LineColor", "V": "0"})
+
+            fill = ET.SubElement(shape_elem, f"{ns}Fill")
+            ET.SubElement(fill, f"{ns}Cell", {"N": "FillForegnd", "V": "1"})
+            ET.SubElement(fill, f"{ns}Cell", {"N": "FillPattern", "V": "1"})
+
+            geom = ET.SubElement(shape_elem, f"{ns}Section", {"N": "Geometry", "IX": "0"})
+            move = ET.SubElement(geom, f"{ns}Row", {"T": "MoveTo", "IX": "1"})
+            ET.SubElement(move, f"{ns}Cell", {"N": "X", "F": "Width*0", "V": "0"})
+            ET.SubElement(move, f"{ns}Cell", {"N": "Y", "F": "Height*0", "V": "0"})
+            for ix, x_formula, y_formula in (
+                ("2", "Width*1", "Height*0"),
+                ("3", "Width*1", "Height*1"),
+                ("4", "Width*0", "Height*1"),
+            ):
+                row = ET.SubElement(geom, f"{ns}Row", {"T": "LineTo", "IX": ix})
+                ET.SubElement(row, f"{ns}Cell", {"N": "X", "F": x_formula, "V": "0"})
+                ET.SubElement(row, f"{ns}Cell", {"N": "Y", "F": y_formula, "V": "0"})
+            close = ET.SubElement(geom, f"{ns}Row", {"T": "LineTo", "IX": "5"})
+            ET.SubElement(close, f"{ns}Cell", {"N": "X", "F": "Geometry1.X1", "V": "0"})
+            ET.SubElement(close, f"{ns}Cell", {"N": "Y", "F": "Geometry1.Y1", "V": "0"})
+
+            text_elem = ET.SubElement(shape_elem, f"{ns}Text")
+            text_elem.text = text or ""
+
+            self._invalidate_template_cache()
+            for shape in reversed(self.current_page.child_shapes):
+                if str(getattr(shape, "ID", "")) == shape_id:
+                    return shape
+        except Exception as exc:
+            print(f"Warning: Failed to create basic shape XML: {exc}")
+        return None
+
     def _classify_delete_activity(self) -> str:
         """Classify the current delete as a single delete or part of a bulk burst."""
         now = time.monotonic()
@@ -190,6 +348,23 @@ class DiagramBuilder:
             template_shape = candidate_templates[0] if candidate_templates else None
 
             if not template_shape:
+                new_shape = self._add_basic_shape_xml(
+                    text=text,
+                    shape_type=normalized_type,
+                    x=x,
+                    y=y,
+                    width=width,
+                    height=height,
+                )
+                if new_shape is not None:
+                    try:
+                        self._ensure_basic_shape_visibility(new_shape, normalized_type)
+                        if use_professional_formatting:
+                            self._apply_professional_formatting(new_shape, normalized_type)
+                    except Exception:
+                        pass
+                    return new_shape
+
                 # Better error message with suggestions
                 available_types = list(set([
                     getattr(getattr(s, 'master', None), 'name', 'Unknown')
@@ -232,11 +407,11 @@ class DiagramBuilder:
 
             # ENHANCED POSITIONING LOGIC
             # 1. Always validate and snap ALL dimensions to grid
-            x, y = validate_position(x, y)
             x = snap_to_grid(x)
             y = snap_to_grid(y)
             width = snap_to_grid(width)
             height = snap_to_grid(height)
+            x, y = self._clamp_shape_center_to_page(x, y, width, height)
             
             # 2. Store original requested position for fallback
             original_x, original_y = x, y
@@ -311,6 +486,7 @@ class DiagramBuilder:
 
             # Mirror shape-level formatting hooks
             self._copy_formatting(template_shape, new_shape)
+            self._ensure_basic_shape_visibility(new_shape, normalized_type)
             
             # Apply professional formatting enhancements
             if use_professional_formatting:
@@ -1681,10 +1857,11 @@ class DiagramBuilder:
         if not shape:
             return False
         try:
-            # Always snap to grid and validate position
-            x, y = validate_position(x, y)
             x = snap_to_grid(x)
             y = snap_to_grid(y)
+            width = self._shape_cell_float(shape, "Width", "width", 1.5)
+            height = self._shape_cell_float(shape, "Height", "height", 0.75)
+            x, y = self._clamp_shape_center_to_page(x, y, width, height)
             
             shape.set_cell_value('PinX', str(x))
             shape.set_cell_value('PinY', str(y))
@@ -1701,15 +1878,17 @@ class DiagramBuilder:
         if not shape:
             return False
         try:
-            old_x = float(shape.cell_value('PinX') or getattr(shape, 'x', 0) or 0)
-            old_y = float(shape.cell_value('PinY') or getattr(shape, 'y', 0) or 0)
+            old_x = float(self._shape_cell_float(shape, 'PinX', 'x', 0) or 0)
+            old_y = float(self._shape_cell_float(shape, 'PinY', 'y', 0) or 0)
             
             # Calculate new position and snap to grid
             new_x = old_x + dx
             new_y = old_y + dy
-            new_x, new_y = validate_position(new_x, new_y)
             new_x = snap_to_grid(new_x)
             new_y = snap_to_grid(new_y)
+            width = self._shape_cell_float(shape, "Width", "width", 1.5)
+            height = self._shape_cell_float(shape, "Height", "height", 0.75)
+            new_x, new_y = self._clamp_shape_center_to_page(new_x, new_y, width, height)
             
             shape.set_cell_value('PinX', str(new_x))
             shape.set_cell_value('PinY', str(new_y))
@@ -1838,7 +2017,9 @@ class DiagramBuilder:
                     new_shape = self.current_page.child_shapes[-1]
             
             if new_shape:
-                x, y = validate_position(x, y)
+                width = self._shape_cell_float(new_shape, "Width", "width", 1.5)
+                height = self._shape_cell_float(new_shape, "Height", "height", 0.75)
+                x, y = self._clamp_shape_center_to_page(x, y, width, height)
                 new_shape.set_cell_value('PinX', str(x))
                 new_shape.set_cell_value('PinY', str(y))
                 if text is not None:
@@ -2065,7 +2246,9 @@ class DiagramBuilder:
                     new_shape = self.current_page.child_shapes[-1]
                     # Set position and text after creation using library APIs
                     try:
-                        x, y = validate_position(x, y)
+                        width = self._shape_cell_float(new_shape, "Width", "width", 1.5)
+                        height = self._shape_cell_float(new_shape, "Height", "height", 0.75)
+                        x, y = self._clamp_shape_center_to_page(x, y, width, height)
                         new_shape.set_cell_value('PinX', str(x))
                         new_shape.set_cell_value('PinY', str(y))
                         if text is not None:
@@ -2120,27 +2303,26 @@ class DiagramBuilder:
                     new_shape = self.current_page.child_shapes[-1]
             
             if new_shape:
-                
+                width = self._shape_cell_float(new_shape, "Width", "width", 1.5)
+                height = self._shape_cell_float(new_shape, "Height", "height", 0.75)
+
                 # Update position if provided (with grid snapping)
                 if x is not None:
                     new_x = snap_to_grid(x)
-                    new_x, _ = validate_position(new_x, 0)
-                    new_shape.set_cell_value('PinX', str(new_x))
                 else:
                     # Default offset: move right by 1 inch (snap to grid)
                     original_x = float(source_shape.cell_value('PinX') or source_shape.x or 0)
                     new_x = snap_to_grid(original_x + 1.0)
-                    new_shape.set_cell_value('PinX', str(new_x))
                 
                 if y is not None:
                     new_y = snap_to_grid(y)
-                    _, new_y = validate_position(0, new_y)
-                    new_shape.set_cell_value('PinY', str(new_y))
                 else:
                     # Default offset: move down by 1 inch (snap to grid)
                     original_y = float(source_shape.cell_value('PinY') or source_shape.y or 0)
                     new_y = snap_to_grid(original_y - 1.0)  # Down is negative in Visio
-                    new_shape.set_cell_value('PinY', str(new_y))
+                new_x, new_y = self._clamp_shape_center_to_page(new_x, new_y, width, height)
+                new_shape.set_cell_value('PinX', str(new_x))
+                new_shape.set_cell_value('PinY', str(new_y))
                 
                 # Update text if provided
                 if text is not None:
@@ -2330,6 +2512,14 @@ class DiagramBuilder:
             if len(errors) > 5:
                 print(f"  ... and {len(errors) - 5} more issues")
         if self.visio_file:
+            try:
+                bounds = self.check_content_bounds()
+                if not bounds.get("fits", True):
+                    print("Info: Content exceeds page bounds; fitting page before save")
+                    self.auto_fit_page_to_content()
+            except Exception as bounds_error:
+                print(f"Warning: Could not check content bounds before save: {bounds_error}")
+
             # Auto-fit page to content if enabled
             if auto_fit:
                 try:
@@ -2570,14 +2760,14 @@ class DiagramBuilder:
         """Compute edge-to-edge connection points between two shapes.
         Falls back to centers if dimensions are unavailable.
         """
-        fx = getattr(from_shape, 'x', None)
-        fy = getattr(from_shape, 'y', None)
-        fw = getattr(from_shape, 'width', None)
-        fh = getattr(from_shape, 'height', None)
-        tx = getattr(to_shape, 'x', None)
-        ty = getattr(to_shape, 'y', None)
-        tw = getattr(to_shape, 'width', None)
-        th = getattr(to_shape, 'height', None)
+        fx = self._shape_cell_float(from_shape, 'PinX', 'x', None)
+        fy = self._shape_cell_float(from_shape, 'PinY', 'y', None)
+        fw = self._shape_cell_float(from_shape, 'Width', 'width', None)
+        fh = self._shape_cell_float(from_shape, 'Height', 'height', None)
+        tx = self._shape_cell_float(to_shape, 'PinX', 'x', None)
+        ty = self._shape_cell_float(to_shape, 'PinY', 'y', None)
+        tw = self._shape_cell_float(to_shape, 'Width', 'width', None)
+        th = self._shape_cell_float(to_shape, 'Height', 'height', None)
 
         # Fallback to centers
         if None in (fx, fy, fw, fh, tx, ty, tw, th):
@@ -2743,6 +2933,7 @@ class DiagramBuilder:
         # Candidate origin is center coordinates
         base_x = snap_to_grid(x, grid)
         base_y = snap_to_grid(y, grid)
+        base_x, base_y = self._clamp_shape_center_to_page(base_x, base_y, width, height)
         
         # Ensure we use proper spacing
         min_spacing = max(MIN_SHAPE_SPACING_IN, grid * 2)  # At least 2 grid units
@@ -2811,7 +3002,7 @@ class DiagramBuilder:
         for dx_grid, dy_grid in axis_offsets:
             cx = base_x + dx_grid
             cy = base_y + dy_grid
-            cx, cy = validate_position(cx, cy)
+            cx, cy = self._clamp_shape_center_to_page(cx, cy, width, height)
             if is_position_valid(cx, cy):
                 return (cx, cy)
         
@@ -2829,7 +3020,7 @@ class DiagramBuilder:
         for dx_grid, dy_grid in diagonal_offsets:
             cx = base_x + dx_grid
             cy = base_y + dy_grid
-            cx, cy = validate_position(cx, cy)
+            cx, cy = self._clamp_shape_center_to_page(cx, cy, width, height)
             if is_position_valid(cx, cy):
                 return (cx, cy)
 
@@ -2844,7 +3035,7 @@ class DiagramBuilder:
                         continue
                     cx = base_x + dx * grid
                     cy = base_y + dy * grid
-                    cx, cy = validate_position(cx, cy)
+                    cx, cy = self._clamp_shape_center_to_page(cx, cy, width, height)
                     # Try with relaxed connector checking
                     if is_position_valid(cx, cy, check_connectors=False):
                         return (cx, cy)
@@ -3446,9 +3637,11 @@ class DiagramBuilder:
             
             print(f"Adding Connects entries for connector {connector_id}: Begin to shape {from_id}, End to shape {to_id}")
             
-            # Normalize connection indices: 0/None mean auto pin reference
-            from_cp_normalized = from_cp if from_cp not in (None, 0) else None
-            to_cp_normalized = to_cp if to_cp not in (None, 0) else None
+            # Normalize connection indices. None and -1 mean auto/center pin
+            # reference. Index 0 is a valid Visio connection row (Top) and
+            # must not be collapsed to PinX/PinY.
+            from_cp_normalized = None if from_cp in (None, -1) else from_cp
+            to_cp_normalized = None if to_cp in (None, -1) else to_cp
             
             def _connection_cell(cp_index: Optional[int]) -> str:
                 if cp_index is None:
@@ -5355,6 +5548,122 @@ class DiagramBuilder:
         except Exception as e:
             # Non-critical: log but don't fail shape creation
             print(f"Note: Could not apply all professional formatting: {e}")
+
+    def _ensure_basic_shape_visibility(self, shape: Any, shape_type: str = "Rectangle") -> None:
+        """Write explicit style and geometry for basic flowchart nodes.
+
+        Some templates carry most visual information through masters or inherited
+        cells. Aspose/LibreOffice can render those as text-only shapes. For basic
+        flowchart nodes, make the outline/fill/geometry explicit on the page
+        shape so fallback renderers can draw the box without resolving master
+        inheritance.
+        """
+        if shape is None or self._is_connector(shape):
+            return
+
+        try:
+            normalized = normalize_shape_type(shape_type or "Rectangle")
+        except Exception:
+            normalized = shape_type or "Rectangle"
+        type_lower = str(normalized).lower()
+
+        basic_types = (
+            "rectangle",
+            "roundedrectangle",
+            "process",
+            "terminator",
+            "diamond",
+            "decision",
+            "parallelogram",
+            "data",
+        )
+        if not any(t in type_lower for t in basic_types):
+            return
+
+        try:
+            for cell_name, cell_value in (
+                ("LineWeight", "0.01388889"),
+                ("LineColor", "0"),
+                ("LinePattern", "1"),
+                ("LineColorTrans", "0"),
+                ("FillPattern", "1"),
+                ("FillForegnd", "1"),
+                ("FillBkgnd", "1"),
+                ("FillForegndTrans", "0"),
+                ("FillBkgndTrans", "0"),
+                ("Transparency", "0"),
+                ("TxtWidth", "Width*1"),
+                ("TxtHeight", "Height*1"),
+                ("TxtPinX", "Width*0.5"),
+                ("TxtPinY", "Height*0.5"),
+                ("TxtLocPinX", "Width*0.5"),
+                ("TxtLocPinY", "Height*0.5"),
+                ("VerticalAlign", "1"),
+                ("Para.HorzAlign", "1"),
+            ):
+                try:
+                    shape.set_cell_value(cell_name, cell_value)
+                except Exception:
+                    pass
+
+            if not hasattr(shape, "xml") or shape.xml is None:
+                return
+
+            import xml.etree.ElementTree as ET
+
+            ns_uri = "http://schemas.microsoft.com/office/visio/2012/main"
+            ns = f"{{{ns_uri}}}"
+            root = shape.xml
+
+            def upsert_direct_cell(name: str, value: str) -> None:
+                cell = root.find(f'{ns}Cell[@N="{name}"]')
+                if cell is None:
+                    cell = root.find(f'Cell[@N="{name}"]')
+                if cell is None:
+                    cell = ET.SubElement(root, f"{ns}Cell")
+                    cell.set("N", name)
+                cell.set("V", value)
+
+            for cell_name, cell_value in (
+                ("LineWeight", "0.01388889"),
+                ("LineColor", "0"),
+                ("LinePattern", "1"),
+                ("FillPattern", "1"),
+                ("FillForegnd", "1"),
+                ("FillBkgnd", "1"),
+                ("Transparency", "0"),
+            ):
+                upsert_direct_cell(cell_name, cell_value)
+
+            for child in list(root):
+                tag_local = child.tag.split("}")[-1]
+                if tag_local == "Section" and child.get("N") == "Geometry":
+                    root.remove(child)
+
+            geom = ET.SubElement(root, f"{ns}Section", {"N": "Geometry", "IX": "0"})
+            ET.SubElement(geom, f"{ns}Cell", {"N": "NoFill", "V": "0"})
+            ET.SubElement(geom, f"{ns}Cell", {"N": "NoLine", "V": "0"})
+
+            def add_row(row_type: str, ix: int, x_formula: str, y_formula: str) -> None:
+                row = ET.SubElement(geom, f"{ns}Row", {"T": row_type, "IX": str(ix)})
+                ET.SubElement(row, f"{ns}Cell", {"N": "X", "V": "0", "F": x_formula})
+                ET.SubElement(row, f"{ns}Cell", {"N": "Y", "V": "0", "F": y_formula})
+
+            if "diamond" in type_lower or "decision" in type_lower:
+                add_row("MoveTo", 0, "Width*0.5", "Height*1")
+                add_row("LineTo", 1, "Width*1", "Height*0.5")
+                add_row("LineTo", 2, "Width*0.5", "Height*0")
+                add_row("LineTo", 3, "Width*0", "Height*0.5")
+                add_row("LineTo", 4, "Width*0.5", "Height*1")
+            else:
+                add_row("MoveTo", 0, "Width*0", "Height*0")
+                add_row("LineTo", 1, "Width*1", "Height*0")
+                add_row("LineTo", 2, "Width*1", "Height*1")
+                add_row("LineTo", 3, "Width*0", "Height*1")
+                add_row("LineTo", 4, "Width*0", "Height*0")
+
+        except Exception as e:
+            print(f"Note: Could not ensure basic shape visibility: {e}")
     
     def apply_orthogonal_routing(self, connector_id: str) -> bool:
         """
@@ -5981,7 +6290,8 @@ class DiagramBuilder:
             else:
                 # Update in place
                 self._update_shape_properties(
-                    existing_shape, text, x, y, width, height, use_professional_formatting
+                    existing_shape, text, x, y, width, height,
+                    use_professional_formatting, shape_type
                 )
                 return existing_shape, "updated"
         else:
@@ -6026,7 +6336,8 @@ class DiagramBuilder:
                 if not success:
                     print(f"Warning: Failed to set NodeKey '{node_key}' on adopted shape ID {getattr(fallback_shape, 'ID', '?')}")
                 self._update_shape_properties(
-                    fallback_shape, text, x, y, width, height, use_professional_formatting
+                    fallback_shape, text, x, y, width, height,
+                    use_professional_formatting, shape_type
                 )
                 return fallback_shape, "adopted"
             else:
@@ -6607,7 +6918,8 @@ class DiagramBuilder:
     
     def _update_shape_properties(self, shape: Any, text: str, x: float, y: float,
                                  width: float, height: float,
-                                 use_professional_formatting: bool):
+                                 use_professional_formatting: bool,
+                                 shape_type_hint: Optional[str] = None):
         """Update an existing shape's properties without replacing it."""
         try:
             # Always snap ALL dimensions to grid for consistency
@@ -6641,8 +6953,9 @@ class DiagramBuilder:
                 pass
             
             # Reapply professional formatting if requested
+            shape_type = shape_type_hint or getattr(shape, 'shape_type', 'Rectangle')
+            self._ensure_basic_shape_visibility(shape, shape_type)
             if use_professional_formatting:
-                shape_type = getattr(shape, 'shape_type', 'Rectangle')
                 self._apply_professional_formatting(shape, shape_type)
             
             # Reroute connectors only if position changed

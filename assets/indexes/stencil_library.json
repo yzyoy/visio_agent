@@ -231216,5 +231216,138 @@
     ],
     "complexity": "medium",
     "scan_date": "2026-05-05T17:13:04.809524"
+  },
+  "生活场景\\流程图与业务建模\\BASFLO_M.VSS": {
+    "name": "BASFLO_M.VSS",
+    "category": "general",
+    "keywords": [],
+    "use_cases": [],
+    "masters": {
+      "2": {
+        "name": "Process",
+        "nameU": "Process",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "15a50647-7503-42a7-8b21-76cd97299d15",
+        "unique_id": "23fb07d9-0002-0000-8e40-00608cf305b2"
+      },
+      "4": {
+        "name": "Decision",
+        "nameU": "Decision",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "7813aa6d-ff4d-4795-b39a-7ff08597892b",
+        "unique_id": "23fb08a4-0004-0000-8e40-00608cf305b2"
+      },
+      "5": {
+        "name": "Subprocess",
+        "nameU": "Subprocess",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "7a104e34-8e84-4e4a-8a91-a6eeddbff75c",
+        "unique_id": "23fb096f-0005-0000-8e40-00608cf305b2"
+      },
+      "6": {
+        "name": "Start/End",
+        "nameU": "Start/End",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "2260fb21-e7de-4f61-949e-679548813b45",
+        "unique_id": "23fb0a3a-0006-0000-8e40-00608cf305b2"
+      },
+      "7": {
+        "name": "Document",
+        "nameU": "Document",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "075e942e-1fec-4cc3-8491-7e365fc0d7ce",
+        "unique_id": "23fb0b04-0007-0000-8e40-00608cf305b2"
+      },
+      "8": {
+        "name": "Data",
+        "nameU": "Data",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "a1001fff-bd96-48c2-a3f2-772a4968572c",
+        "unique_id": "23fb0bcf-0008-0000-8e40-00608cf305b2"
+      },
+      "9": {
+        "name": "Database",
+        "nameU": "Database",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "21f0be37-55a4-4074-b605-58ae3c4f7a5e",
+        "unique_id": "23fb0c9a-0009-0000-8e40-00608cf305b2"
+      },
+      "10": {
+        "name": "External Data",
+        "nameU": "External Data",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "30bd7e4d-ee86-4c85-9977-2d8d3bc39190",
+        "unique_id": "23fb0d65-000a-0000-8e40-00608cf305b2"
+      },
+      "11": {
+        "name": "Custom 1",
+        "nameU": "Custom 1",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "55b2a662-f9e8-48b8-876b-647847884c99",
+        "unique_id": "23fb0e30-000b-0000-8e40-00608cf305b2"
+      },
+      "12": {
+        "name": "Custom 2",
+        "nameU": "Custom 2",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "c2e2df47-bf01-4b76-a496-1722aee5d972",
+        "unique_id": "23fb0efa-000c-0000-8e40-00608cf305b2"
+      },
+      "13": {
+        "name": "Custom 3",
+        "nameU": "Custom 3",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "e52cd5fb-69d8-4ffb-be15-76a40e1db9f0",
+        "unique_id": "23fb0fc5-000d-0000-8e40-00608cf305b2"
+      },
+      "14": {
+        "name": "Custom 4",
+        "nameU": "Custom 4",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "ae6ef087-bfe5-4878-b269-98a17c4e4176",
+        "unique_id": "23fb10a0-000e-0000-8e40-00608cf305b2"
+      },
+      "15": {
+        "name": "On-page reference",
+        "nameU": "On-page reference",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "986e40cf-70af-40a0-b271-44fc71e0a2ca",
+        "unique_id": "23fb116a-000f-0000-8e40-00608cf305b2"
+      },
+      "16": {
+        "name": "Off-page reference",
+        "nameU": "Off-page reference",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "62ecbbc2-19a7-4ecd-bafe-be00f2074838",
+        "unique_id": "23fb1235-0010-0000-8e40-00608cf305b2"
+      },
+      "17": {
+        "name": "Dynamic connector",
+        "nameU": "Dynamic connector",
+        "master_type": "Aspose.Diagram.Master",
+        "base_id": "f7290a45-e3ad-11d2-ae4f-006008c9f5a9",
+        "unique_id": "23fb12f0-0011-0000-8e40-00608cf305b2"
+      }
+    },
+    "master_count": 15,
+    "master_names": [
+      "Process",
+      "Decision",
+      "Subprocess",
+      "Start/End",
+      "Document",
+      "Data",
+      "Database",
+      "External Data",
+      "Custom 1",
+      "Custom 2",
+      "Custom 3",
+      "Custom 4",
+      "On-page reference",
+      "Off-page reference",
+      "Dynamic connector"
+    ],
+    "complexity": "medium",
+    "scan_date": "2026-06-05T13:48:52.015690"
   }
 }

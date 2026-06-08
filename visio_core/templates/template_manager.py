@@ -140,7 +140,25 @@ class TemplateManager:
         if os.path.exists(exact_repo):
             return exact_repo
 
-        # 4) If not found, retry by prefixing the provided path with a small, controlled
+        # 4) Resolve through the indexed library. This keeps lookup bounded to known
+        #    templates while allowing callers to pass either the indexed relative path
+        #    or a unique template filename from a subdirectory such as ComputerVision.
+        normalized_name = os.path.normpath(template_name).replace("\\", "/").strip("/")
+        if normalized_name in self.library:
+            indexed_path = os.path.join(self.template_dir, *normalized_name.split("/"))
+            if os.path.exists(indexed_path):
+                return indexed_path
+
+        basename_matches = [
+            key for key in self.library
+            if os.path.basename(key).lower() == os.path.basename(normalized_name).lower()
+        ]
+        if len(basename_matches) == 1:
+            indexed_path = os.path.join(self.template_dir, *basename_matches[0].split("/"))
+            if os.path.exists(indexed_path):
+                return indexed_path
+
+        # 5) If not found, retry by prefixing the provided path with a small, controlled
         #    set of allowed prefixes (in this specific order). Do NOT perform any
         #    global or recursive search — only these prefixes are allowed.
         prefixes = [
@@ -162,6 +180,25 @@ class TemplateManager:
                 return candidate2
 
         # If still not found, return None so callers can handle the explicit error
+        return None
+
+    def _library_key_for_template_path(self, template_path: str) -> Optional[str]:
+        """Return the indexed library key for a resolved template path."""
+        try:
+            rel_path = os.path.relpath(template_path, self.template_dir)
+            normalized_rel = os.path.normpath(rel_path).replace("\\", "/")
+            if normalized_rel in self.library:
+                return normalized_rel
+        except ValueError:
+            pass
+
+        basename = os.path.basename(template_path)
+        basename_matches = [
+            key for key in self.library
+            if os.path.basename(key).lower() == basename.lower()
+        ]
+        if len(basename_matches) == 1:
+            return basename_matches[0]
         return None
     
     def load_template(self, template_name: str) -> Optional[DiagramBuilder]:
@@ -293,9 +330,9 @@ class TemplateManager:
             os.remove(template_path)
             
             # Remove from library
-            filename = os.path.basename(template_path)
-            if filename in self.library:
-                del self.library[filename]
+            library_key = self._library_key_for_template_path(template_path)
+            if library_key in self.library:
+                del self.library[library_key]
                 self._save_library()
             
             print(f"Removed template: {template_name}")
@@ -318,8 +355,9 @@ class TemplateManager:
         if not template_path:
             return None
         
-        filename = os.path.basename(template_path)
-        library_info = self.library.get(filename, {})
+        library_key = self._library_key_for_template_path(template_path)
+        filename = library_key or os.path.basename(template_path)
+        library_info = self.library.get(library_key, {}) if library_key else {}
         
         # Build info from library
         info = {
@@ -498,11 +536,11 @@ class TemplateManager:
             print(f"Template not found: {template_name}")
             return None
         
-        filename = os.path.basename(template_path)
+        library_key = self._library_key_for_template_path(template_path)
         
         # Try to use cached data from library
-        if use_cache and filename in self.library:
-            return self.library[filename].get('shapes', {})
+        if use_cache and library_key in self.library:
+            return self.library[library_key].get('shapes', {})
         
         # Otherwise, scan the template
         try:

@@ -5,12 +5,14 @@ These tools can be used by AI agents to modify Visio diagrams
 Enhanced with SessionContext for multi-turn conversation memory
 """
 from typing import Optional, List, Dict, Any, Tuple
+from datetime import datetime
 import json
+import os
 import re
 from ..templates.template_manager import TemplateManager
 from ..templates.stencil_manager import StencilManager
 from ..utils.diagram_builder import DiagramBuilder
-from ..utils.logger import log_operation, log_file_operation, save_diagram_copy, get_session_summary, get_logger
+from ..utils.logger import log_operation, log_file_operation, get_session_summary, get_logger
 from ..utils.layout_config import normalize_shape_type
 from ..utils.visio_render import render_vsdx_page_to_data_uri, render_and_save_png
 from ..utils.shape_identity import get_shape_prop
@@ -30,8 +32,6 @@ class VisioTools:
         self._session_id: str = session_id or "default"
         self._context_store = DialogContextStore(dialog_dir) if record_context else DisabledDialogContextStore(dialog_dir)
         self._restored_once: bool = False
-        if auto_restore:
-            self._try_restore()
         # Max inline image size to avoid token overflow
         self._max_inline_data_uri_chars: int = 120_000
         # Stencil cache: path -> StencilParser
@@ -41,15 +41,71 @@ class VisioTools:
         self._stencil_manager: Optional[StencilManager] = None
         # Track unsaved changes to warn users
         self._has_unsaved_changes: bool = False
-    
+        self._finalized_output_path: Optional[str] = None
+        self._current_request_output_path: Optional[str] = None
+        if auto_restore:
+            self._try_restore()
+
     def set_diagram(self, diagram_builder: DiagramBuilder, file_path: str):
         """Set the current diagram to work with"""
         self.diagram_builder = diagram_builder
         self.current_file_path = file_path
+        self._current_request_output_path = None
         try:
             self._persist()
         except Exception:
             pass
+
+    def _abs_path(self, path: Optional[str]) -> Optional[str]:
+        if not path:
+            return None
+        try:
+            return os.path.abspath(path)
+        except Exception:
+            return path
+
+    def _make_unique_output_path(self, requested_path: str) -> str:
+        """Return requested_path, or a timestamped sibling if it already exists."""
+        base_path = os.path.abspath(requested_path)
+        directory = os.path.dirname(base_path)
+        stem, ext = os.path.splitext(os.path.basename(base_path))
+        ext = ext or ".vsdx"
+        if not os.path.exists(base_path):
+            return requested_path
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        candidate = os.path.join(directory, f"{stem}_{timestamp}{ext}")
+        counter = 1
+        while os.path.exists(candidate):
+            candidate = os.path.join(directory, f"{stem}_{timestamp}_{counter:02d}{ext}")
+            counter += 1
+        return candidate
+
+    def _resolve_save_path_for_current_question(self, requested_path: str) -> str:
+        """Choose the single final file for the current user question."""
+        if self._current_request_output_path:
+            return self._current_request_output_path
+
+        requested_abs = self._abs_path(requested_path)
+        finalized_abs = self._abs_path(self._finalized_output_path)
+        current_abs = self._abs_path(self.current_file_path)
+
+        if (
+            self._has_unsaved_changes
+            and finalized_abs
+            and (requested_abs == finalized_abs or current_abs == finalized_abs)
+        ):
+            self._current_request_output_path = self._make_unique_output_path(requested_path)
+            return self._current_request_output_path
+
+        self._current_request_output_path = requested_path
+        return requested_path
+
+    def mark_current_output_finalized(self) -> None:
+        """Mark the current file as the final artifact for the latest question."""
+        if self.current_file_path:
+            self._finalized_output_path = self.current_file_path
+        self._current_request_output_path = None
 
     # ---------- Session context helpers ----------
     def _current_page_index(self) -> int:
@@ -98,6 +154,8 @@ class VisioTools:
             if fp:
                 self.diagram_builder = DiagramBuilder.load_from_file(fp)
                 self.current_file_path = fp
+                self._finalized_output_path = fp
+                self._current_request_output_path = None
                 try:
                     self.diagram_builder.get_page(idx)
                 except Exception:
@@ -183,6 +241,8 @@ class VisioTools:
             pass
         self.diagram_builder = None
         self.current_file_path = None
+        self._finalized_output_path = None
+        self._current_request_output_path = None
         self._restored_once = True
         return f"✓ Session '{self._session_id}' reset"
 
@@ -250,6 +310,8 @@ class VisioTools:
         try:
             self.diagram_builder = DiagramBuilder.load_from_file(filepath)
             self.current_file_path = filepath
+            self._finalized_output_path = filepath
+            self._current_request_output_path = None
             info = self.diagram_builder.get_diagram_info()
             try:
                 self._persist()
@@ -464,6 +526,7 @@ class VisioTools:
         normalized_text, normalized_changed = normalize_shape_text(new_text)
         success = self.diagram_builder.update_shape_text(shape_id, normalized_text)
         if success:
+            self._has_unsaved_changes = True
             result = f"✓ Updated shape {shape_id}: '{normalized_text}'"
             if normalized_changed:
                 result += " (normalized embedded line breaks)"
@@ -1349,6 +1412,7 @@ class VisioTools:
             return err
         ok = self.diagram_builder.set_shape_position(shape_id, x, y)
         if ok:
+            self._has_unsaved_changes = True
             msg = f"✓ Moved shape {shape_id} to ({x:.2f}, {y:.2f})"
             log_operation("set_shape_position", {"shape_id": shape_id, "x": x, "y": y}, msg, True)
             return msg
@@ -1363,6 +1427,7 @@ class VisioTools:
             return err
         ok = self.diagram_builder.move_shape_by(shape_id, dx, dy)
         if ok:
+            self._has_unsaved_changes = True
             msg = f"✓ Nudged shape {shape_id} by ({dx:.2f}, {dy:.2f})"
             log_operation("nudge_shape", {"shape_id": shape_id, "dx": dx, "dy": dy}, msg, True)
             return msg
@@ -1376,6 +1441,7 @@ class VisioTools:
             return err
         ok = self.diagram_builder.set_shape_size(shape_id, width, height)
         if ok:
+            self._has_unsaved_changes = True
             msg = f"✓ Resized shape {shape_id} to {width:.2f}×{height:.2f} in"
             log_operation("set_shape_size", {"shape_id": shape_id, "width": width, "height": height}, msg, True)
             return msg
@@ -1389,6 +1455,7 @@ class VisioTools:
             return err
         ok = self.diagram_builder.set_shape_line_width(shape_id, width_pt)
         if ok:
+            self._has_unsaved_changes = True
             msg = f"✓ Set line width of shape {shape_id} to {width_pt:.2f} pt"
             log_operation("set_line_width", {"shape_id": shape_id, "width_pt": width_pt}, msg, True)
             return msg
@@ -1402,6 +1469,7 @@ class VisioTools:
             return err
         ok = self.diagram_builder.set_shape_line_color(shape_id, color_hex)
         if ok:
+            self._has_unsaved_changes = True
             msg = f"✓ Set line color of shape {shape_id} to {color_hex}"
             log_operation("set_line_color", {"shape_id": shape_id, "color": color_hex}, msg, True)
             return msg
@@ -1415,6 +1483,7 @@ class VisioTools:
             return err
         ok = self.diagram_builder.set_shape_fill_color(shape_id, color_hex)
         if ok:
+            self._has_unsaved_changes = True
             msg = f"✓ Set fill color of shape {shape_id} to {color_hex}"
             log_operation("set_fill_color", {"shape_id": shape_id, "color": color_hex}, msg, True)
             return msg
@@ -1638,10 +1707,12 @@ class VisioTools:
         """
         try:
             manager = TemplateManager()
+            output_path = self._make_unique_output_path(output_path)
             # This will raise FileNotFoundError if template not found (strict path enforcement)
             created = manager.create_from_template(template_name, output_path)
             self.diagram_builder = DiagramBuilder.load_from_file(output_path)
             self.current_file_path = output_path
+            self._current_request_output_path = output_path
             try:
                 self._persist()
             except Exception:
@@ -2110,7 +2181,7 @@ class VisioTools:
         保存当前图表到文件。
         
         Saves all changes made to the diagram. If no filepath is provided,
-        saves to the original file path. Also saves a copy to the log directory.
+        saves to the original file path.
         Optionally validates and fixes VSDX structure for web viewer compatibility.
         
         中文指令：保存、存储、写入、保存图表、保存文件
@@ -2131,9 +2202,10 @@ class VisioTools:
         if err:
             return err
         
-        save_path = filepath or self.current_file_path
-        if not save_path:
+        requested_path = filepath or self.current_file_path
+        if not requested_path:
             return "✗ No filepath specified and no original path available"
+        save_path = self._resolve_save_path_for_current_question(requested_path)
         
         try:
             self.diagram_builder.save(save_path, auto_fit=False, validate_compatibility=validate_web_compatibility)
@@ -2146,9 +2218,6 @@ class VisioTools:
                 self._persist()
             except Exception:
                 pass
-            
-            # Save copy to log directory
-            save_diagram_copy(save_path, "saved")
             
             result = f"✓ Diagram saved to {save_path}"
             log_operation(
@@ -2860,6 +2929,7 @@ class VisioTools:
         )
         
         if shape and action != "error":
+            self._has_unsaved_changes = True
             shape_id = getattr(shape, 'ID', 'unknown')
             if action == "added":
                 result = f"✓ Added new shape '{text}' at ({x}, {y}). Shape ID: {shape_id}, Key: {node_key}"

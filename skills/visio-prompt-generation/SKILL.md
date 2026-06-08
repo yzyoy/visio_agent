@@ -46,6 +46,8 @@ description: Plan Visio edits using the 16-tool surface, then execute with MCP t
 ## 步骤 3：选定模板
 - 用户已指定路径或文件名 → 使用该模板。
 - 用户只说「帮我画 / 做一个 xxx 图」且未指定模板 → **自动采用排序第一的合规推荐**（或 `recommend_template` 返回的唯一首选），无需先把一长串候选脚本发给用户再等待确认。
+- 中文需求默认优先中文模板、空白模板、通用流程/基础流程模板；不要因为英文行业模板结构相似就优先采用它。
+- 如果最终必须采用英文行业模板，复制后必须先通过 `analyze_template` 找出所有原模板英文节点、标题、标签，并用 `edit_shape` 替换为用户需求中的中文文本，或用 `remove_shape(..., reconnect_mode="remove_connectors")` 删除；最终图不允许残留未被用户要求的英文行业示例文本。
 - 仅在「多条候选都合理且门禁宽松」或用户表达「你帮我从这几个里挑」时，再用一两句话列出差异并请用户选；即便如此也不要用「整份 Prompt」代替工具调用。
 
 ## 步骤 4：深度分析（一次调用）
@@ -103,10 +105,11 @@ upsert_connector(from_node_key="decision_pass", to_node_key="reject",        lab
 upsert_connector(from_node_key="decision_pass", to_node_key="process",       label="通过",   from_port="Bottom", to_port="Top")
 # ...
 
-# Step 7: 保存 → 重载 → 渲染（render_page 同时返回 fit_window 图片 + 交互预览链接）
+# Step 7: 保存 → 重载 → 交付预览链接
 save_document("outputs/<output>.vsdx")
 open_document("outputs/<output>.vsdx")   # 硬约束，不得省略
-render_page(page=0, scale=2.0, mode="url")  # 默认 url 模式，PNG 与 /api/visio/preview 一致
+# 默认不要调用 render_page；回复中给出 Markdown 预览链接即可。
+# 只有用户明确要求在聊天里显示图片时，才调用 render_page(page=0, scale=2.0, mode="url")。
 ```
 
 ### 退化骨架：Workflow B（从零搭建，模板结构完全不符时）
@@ -131,10 +134,11 @@ upsert_connector(from_node_key="n1", to_node_key="n2",
 edit_shape("n1", patch={"style": {"fill_color": "#CCE5FF"}})
 edit_shape("n2", patch={"size":  {"width": 2.0, "height": 1.0}})
 
-# Step 5: 保存 → 重载 → 渲染（render_page 同时返回 fit_window 图片 + 交互预览链接）
+# Step 5: 保存 → 重载 → 交付预览链接
 save_document("outputs/<output>.vsdx")
 open_document("outputs/<output>.vsdx")   # 硬约束，不得省略
-render_page(page=0, scale=2.0, mode="url")  # 默认 url 模式，PNG 与 /api/visio/preview 一致
+# 默认不要调用 render_page；回复中给出 Markdown 预览链接即可。
+# 只有用户明确要求在聊天里显示图片时，才调用 render_page(page=0, scale=2.0, mode="url")。
 ```
 
 要求：

@@ -115,6 +115,9 @@ TODO.md
 MCP_CONTRACT.md
 scripts/
 tests/
+!tests/
+tests/*
+!tests/test_visio_render_blank.py
 refine/
 材料/
 

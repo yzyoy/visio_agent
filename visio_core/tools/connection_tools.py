@@ -21,6 +21,12 @@ def get_shape_coordinates(shape: Any) -> Tuple[float, float]:
     """
     try:
         # Try to get PinX and PinY properties (center coordinates)
+        if hasattr(shape, 'cell_value'):
+            pin_x = shape.cell_value('PinX')
+            pin_y = shape.cell_value('PinY')
+            if pin_x not in (None, '') and pin_y not in (None, ''):
+                return float(pin_x), float(pin_y)
+
         if hasattr(shape, 'x') and hasattr(shape, 'y'):
             return float(shape.x), float(shape.y)
         

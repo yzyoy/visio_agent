@@ -581,6 +581,78 @@ class SmartMatcher:
 
         return self._normalize_search_text(' '.join(searchable_parts))
 
+    def _is_chinese_request(self, user_input: str) -> bool:
+        """Return True when the original request contains CJK text."""
+        return bool(re.search(r"[\u4e00-\u9fff]", user_input or ""))
+
+    def _template_language_preference_score(
+        self,
+        item_data: Dict[str, Any],
+        user_input: str,
+        search_type: str = "template",
+    ) -> float:
+        """Prefer Chinese, blank, and generic templates for Chinese requests."""
+        if search_type != "template" or not self._is_chinese_request(user_input):
+            return 0.0
+
+        filename = str(item_data.get("filename", ""))
+        name = str(item_data.get("name", ""))
+        category = str(item_data.get("category", ""))
+        path = str(item_data.get("path", item_data.get("full_path", "")))
+        keywords = " ".join(self._coerce_text_list(item_data.get("keywords")))
+        use_cases = " ".join(self._coerce_text_list(item_data.get("use_cases")))
+        sample_texts = self._coerce_text_list(item_data.get("sample_texts"))
+        sample_blob = " ".join(sample_texts[:20])
+        identity_text = " ".join([filename, name, category, path])
+        searchable = self._normalize_search_text(
+            " ".join([identity_text, keywords, use_cases, sample_blob])
+        )
+
+        score = 0.0
+        if re.search(r"[\u4e00-\u9fff]", identity_text):
+            score += 0.38
+        if re.search(r"[\u4e00-\u9fff]", sample_blob):
+            score += 0.18
+
+        generic_terms = (
+            "blank", "empty", "basic", "generic", "general", "simple",
+            "standard", "common", "template", "flowchart", "workflow",
+            "process", "diagram", "starter", "default",
+            "空白", "通用", "基础", "基本", "标准", "简单", "流程",
+            "流程图", "模板",
+        )
+        if any(term in searchable for term in generic_terms):
+            score += 0.24
+
+        non_empty_samples = [text for text in sample_texts if str(text).strip()]
+        if not non_empty_samples:
+            score += 0.16
+        elif len(non_empty_samples) <= 4 and max((len(str(t)) for t in non_empty_samples), default=0) <= 24:
+            score += 0.08
+
+        english_industry_terms = (
+            "property", "buying", "agent", "loan", "contract", "underwriting",
+            "purchase", "mortgage", "inspection", "survey", "closing",
+            "customer", "sales", "marketing", "invoice", "vendor", "supplier",
+            "insurance", "banking", "recruiting", "hiring", "healthcare",
+            "patient", "manufacturing", "warehouse", "shipping", "legal",
+        )
+        user_normalized = self._normalize_search_text(user_input)
+        industry_hits = [
+            term for term in english_industry_terms
+            if term in searchable and term not in user_normalized
+        ]
+        has_cjk_metadata = bool(re.search(r"[\u4e00-\u9fff]", " ".join([identity_text, sample_blob])))
+        if industry_hits and not has_cjk_metadata:
+            score -= min(0.55, 0.22 + 0.07 * len(industry_hits))
+
+        if sample_blob and not re.search(r"[\u4e00-\u9fff]", sample_blob):
+            english_words = re.findall(r"[A-Za-z]{3,}", sample_blob)
+            if len(english_words) >= 8 and not any(term in user_normalized for term in english_words[:12]):
+                score -= 0.18
+
+        return max(-0.65, min(0.85, score))
+
     def _evaluate_must_match_groups(
         self,
         item_data: Dict[str, Any],
@@ -856,7 +928,8 @@ class SmartMatcher:
                                         keyword_weight: float = 0.4,
                                         structure_weight: float = 0.6,
                                         must_match_alias_groups: Optional[List[Dict[str, Any]]] = None,
-                                        require_must_match: bool = False) -> List[Dict[str, Any]]:
+                                        require_must_match: bool = False,
+                                        user_input: str = "") -> List[Dict[str, Any]]:
         """
         通过关键词+结构综合筛选模板或形状库（步骤2增强版 - 使用精简版）
         
@@ -912,13 +985,21 @@ class SmartMatcher:
             # 两者都要通过才能进入候选
             if keyword_pass and structure_pass:
                 # 4. 加权组合得到最终分数
-                final_score = keyword_score * keyword_weight + structure_score * structure_weight
+                base_score = keyword_score * keyword_weight + structure_score * structure_weight
+                template_preference_score = self._template_language_preference_score(
+                    item_data,
+                    user_input,
+                    search_type=search_type,
+                )
+                final_score = max(0.0, min(1.0, base_score + template_preference_score * 0.18))
                 
                 result = {
                     'filename': filename,
                     'keyword_match_score': round(keyword_score, 3),
                     'structure_match_score': round(structure_score, 3),
                     'combined_score': round(final_score, 3),
+                    'base_combined_score': round(base_score, 3),
+                    'template_preference_score': round(template_preference_score, 3),
                     'matched_core_terms': core_match['matched_sources'],
                     'must_match_passed': core_match['passes'],
                     'core_term_match_ratio': round(core_match['coverage'], 3),
@@ -932,6 +1013,7 @@ class SmartMatcher:
             key=lambda x: (
                 -float(x.get('must_match_passed', False)),
                 -float(x.get('core_term_match_ratio', 0) or 0),
+                -float(x.get('template_preference_score', 0) or 0),
                 -x['combined_score'],
                 -x['structure_match_score'],
                 -x['keyword_match_score'],
@@ -1406,14 +1488,19 @@ class SmartMatcher:
                     # acts as an anchor that keeps repeat runs identical.
                     llm_score_raw = float(rec.get('llm_score', 0) or 0)
                     combined_score = float(original.get('combined_score', 0) or 0)
+                    template_preference_score = float(original.get('template_preference_score', 0) or 0)
                     final_score = round(
-                        0.7 * llm_score_raw + 0.3 * (combined_score * 10.0), 3
+                        0.68 * llm_score_raw
+                        + 0.30 * (combined_score * 10.0)
+                        + 0.55 * template_preference_score,
+                        3,
                     )
 
                     merged = {
                         **original,
                         'llm_score': llm_score_raw,
                         'final_score': final_score,
+                        'template_preference_score': round(template_preference_score, 3),
                         'template_path': template_path,  # 使用确保正确的路径
                         'structure_description': rec.get('structure_description', ''),
                         'dimension_scores': rec.get('dimension_scores', {}),
@@ -1456,6 +1543,7 @@ class SmartMatcher:
                 key=lambda r: (
                     -float(r.get('final_score', 0) or 0),
                     -float(r.get('llm_score', 0) or 0),
+                    -float(r.get('template_preference_score', 0) or 0),
                     -float(r.get('combined_score', 0) or 0),
                     r.get('filename', ''),
                 )
@@ -1772,7 +1860,8 @@ class SmartMatcher:
                         search_type: str,
                         confidence_score: float,
                         must_match_alias_groups: Optional[List[Dict[str, Any]]] = None,
-                        require_must_match: bool = False) -> tuple:
+                        require_must_match: bool = False,
+                        user_input: str = "") -> tuple:
         """
         步骤 2 自适应筛选：逐渐提升阈值等级，确保候选数 ∈ [1, 10]。
         
@@ -1800,6 +1889,7 @@ class SmartMatcher:
                 structure_threshold=st,
                 must_match_alias_groups=must_match_alias_groups,
                 require_must_match=require_must_match,
+                user_input=user_input,
             )
             trace.append({"level": level, "kt": kt, "st": st, "count": len(cands)})
             return cands
@@ -1854,6 +1944,8 @@ class SmartMatcher:
             lines.append(f"   完整路径: {full_path}")
             lines.append(f"   类别: {category}")
             lines.append(f"   复杂度: {complexity}")
+            if search_preference := item.get('template_preference_score'):
+                lines.append(f"   中文/通用模板偏好分: {search_preference}")
             
             # Add shape info for templates (结构信息优先)
             if 'shape_total' in item:
@@ -1930,6 +2022,7 @@ class SmartMatcher:
             confidence_score=confidence_score,
             must_match_alias_groups=must_match_alias_groups,
             require_must_match=bool(must_match_alias_groups),
+            user_input=user_input,
         )
 
         alternatives: List[Dict[str, Any]] = []
@@ -1946,6 +2039,7 @@ class SmartMatcher:
                 confidence_score=confidence_score,
                 must_match_alias_groups=must_match_alias_groups,
                 require_must_match=False,
+                user_input=user_input,
             )
             alternatives = relaxed_candidates[:top_k]
 
@@ -2040,6 +2134,7 @@ class SmartMatcher:
             confidence_score=confidence_score,
             must_match_alias_groups=must_match_alias_groups,
             require_must_match=bool(must_match_alias_groups),
+            user_input=user_input,
         )
         print(f"✓ 自适应筛选完成: 最终 {len(candidates)} 个候选 (阶梯轨迹: {ladder_trace})")
 
@@ -2055,6 +2150,7 @@ class SmartMatcher:
                 confidence_score=confidence_score,
                 must_match_alias_groups=must_match_alias_groups,
                 require_must_match=False,
+                user_input=user_input,
             )
             print(f"✓ 放宽后备选候选数: {len(relaxed_candidates)} 个 (阶梯轨迹: {relaxed_trace})")
             alternatives = relaxed_candidates[:top_k]

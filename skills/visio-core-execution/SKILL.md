@@ -97,6 +97,8 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 - 使用模板时，**绝不在执行 edit_shape / remove_shape 清理旧形状之前调用 upsert_shape**。
 - `upsert_shape` 仅允许在步骤 7（analyze_template 已确认该角色在模板中不存在）后使用。
 - 每个需要被 `upsert_connector` 引用的形状，都必须先用 `edit_shape(id, {node_key: "..."})` 绑定 key。
+- 中文需求默认优先中文模板、空白模板、通用流程/基础流程模板；不要因英文行业模板结构相似就优先使用它。
+- 如果命中并使用英文行业模板，复制后必须先清空或替换所有原模板英文节点、标题、标签：用 `analyze_template` 获取实时 shapes，再对保留形状执行 `edit_shape(id, {"text": "中文文本", "node_key": "..."})`，对多余英文示例形状执行 `remove_shape(..., reconnect_mode="remove_connectors")`。最终图不允许残留用户未要求的英文行业文本。
 
 **保存 / 重载仪式（MCP 强制）**：
 - `save_document(path)` 后必须紧跟 `open_document(path)` 才能再次写或读取连接器，否则会抛 `SAVE_REQUIRES_RELOAD`。
@@ -105,9 +107,11 @@ description: Core Visio operations, basics, constraints, Chinese instruction map
 - 结构分析一律调用 `analyze_template(path)` 一次，返回 info / shapes / connections / positions / groups / topology 六段。
 
 **渲染 / 预览纪律（强制）**：
-- 预览图片一律走 `render_page`，禁止自己拼接 `outputs/static/visio/...` 直链。
+- 默认交付只返回 `.vsdx` 路径 + Markdown 预览链接，不主动调用 `render_page`，不在聊天 UI 内联返回流程图/图片。
+- 只有当用户明确要求“显示图片 / 渲染图片 / 在聊天里展示 / 预览截图”时，才调用 `render_page`。
+- 需要图片时一律走 `render_page`，禁止自己拼接 `outputs/static/visio/...` 直链。
 - `render_page` 内部走 `render_and_cache_preview`，与 `/api/visio/preview` 页面同源，PNG 字节完全一致，能保证 fit_window 缩放后图像完整不裁切。
-- `render_page` 的返回值已经包含两段内容（inline 图片 + `[Open interactive preview](...)` 链接）；必须**整段原样**贴回给用户，绝不删掉链接、绝不只贴图片。
+- 一旦已调用 `render_page`，其返回值包含 inline 图片 + `[Open interactive preview](...)` 链接，必须整段原样贴回给用户。
 - 默认 `mode="url"`；仅在用户明确要求"离线 / 嵌入式 / 不联网"场景下才用 `mode="data"`，且小图（<120 KB）才内联，否则同样回退到 URL。
 
 ## 4. 中文指令理解
@@ -136,7 +140,7 @@ A) 在已有模板上原位改文字
   4) `update_text`
   5) `save_document`
   6) `open_document` (强制再次打开才能读连接器)
-  7) `render_page`
+  7) 返回 `.vsdx` 路径 + Markdown 预览链接；仅用户明确要求聊天内显示图片时才 `render_page`
 
 B) 从零搭建图表
   1) `recommend_template`
@@ -147,7 +151,7 @@ B) 从零搭建图表
   6) `edit_shape` (调整样式/大小)
   7) `save_document`
   8) `open_document`
-  9) `render_page`
+  9) 返回 `.vsdx` 路径 + Markdown 预览链接；仅用户明确要求聊天内显示图片时才 `render_page`
 
 C) 插入形状库中的形状
   1) `search_stencils`
@@ -177,4 +181,4 @@ E) **模板骨架复用（DEFAULT — 用户选定模板后必须走此流程）
      — 所有端点必须已在步骤 6 或 8 中绑定了 node_key
   10) `save_document("outputs/<name>.vsdx")`
   11) `open_document("outputs/<name>.vsdx")` — 强制重载（MCP 约束）
-  12) `render_page(page=0, scale=2.0, mode="url")` — 把返回的 **inline 图片 + 交互预览链接** 整段贴回给用户；链接是默认 fit_window 视图的唯一可靠入口，绝不能省略。
+  12) 返回 `.vsdx` 路径 + Markdown 预览链接；仅用户明确要求聊天内显示图片时才 `render_page(page=0, scale=2.0, mode="url")`

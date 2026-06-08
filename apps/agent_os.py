@@ -22,9 +22,19 @@ import os
 import sys
 import time
 
+# Ensure project root is on sys.path when running the module as a script
+# (e.g. `python apps/agent_os.py` or when invoked by full path). This makes
+# sibling packages like `visio_core` importable without installing the package.
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+# Keep all relative runtime paths (outputs/, .state/, assets/) anchored to the
+# project root even when uvicorn is launched from the parent directory.
+os.chdir(_ROOT)
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(os.path.join(_ROOT, ".env"), override=False)
 except Exception:
     pass
 
@@ -70,7 +80,7 @@ DEEPSEEK_MODEL_ID = os.environ.get("DEEPSEEK_MODEL_ID", "deepseek-chat").strip()
 DEEPSEEK_MODEL_NAME = (
     "DeepSeek V3.2 Reasoner"
     if DEEPSEEK_MODEL_ID == "deepseek-reasoner"
-    else "DeepSeek V3.2 Chat"
+    else "DeepSeek V4 Chat"
 )
 AGNO_SESSIONS_DB = os.environ.get("AGNO_SESSIONS_DB", ".state/agno_sessions.db")
 VISIO_TEMPLATE_DIR = os.environ.get("VISIO_TEMPLATE_DIR", "assets/templates")

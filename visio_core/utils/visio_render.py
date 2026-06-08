@@ -625,20 +625,17 @@ def render_vsdx_page_to_png(
         logger.info("Rendered %s page %d via %s (%d DPI)", src.name, page, backend, dpi)
         return cached.read_bytes()
 
-    # If every non-blank backend failed but we have a blank-but-valid PNG, return it
-    # rather than erroring out, with a clear log warning.
-    if last_blank_path is not None and last_blank_path.exists():
-        logger.warning(
-            "All non-blank backends failed; returning blank fallback render. "
-            "Failures: %s",
-            "; ".join(failures),
-        )
-        return last_blank_path.read_bytes()
-
     diag = "\n".join(f"  - {f}" for f in failures) or "  - (no backends ran)"
+    blank_hint = ""
+    if last_blank_path is not None and last_blank_path.exists():
+        blank_hint = (
+            "\n\nA backend produced a valid PNG that was detected as blank. "
+            f"The blank file was left for diagnostics at: {last_blank_path}"
+        )
     raise VisioError(
         "Could not render VSDX to PNG. Backend failures:\n"
-        f"{diag}\n\n"
+        f"{diag}"
+        f"{blank_hint}\n\n"
         "Suggestions:\n"
         "  • On Windows: install Microsoft Visio (best fidelity) or `pip install aspose-diagram-python`.\n"
         "  • On Linux/macOS: install `libreoffice` and `poppler-utils`, or `pip install aspose-diagram-python`.\n"
@@ -777,21 +774,32 @@ def render_and_cache_preview(
     src_mtime = int(src_mtime_ns // 1_000_000_000)
 
     if not force and out_file.exists() and out_file.stat().st_size > 0:
-        cached_mtime = int(out_file.stat().st_mtime)
-        logger.debug(
-            "render_and_cache_preview: cache hit for %s page %d (%s, rev=%s)",
-            src.name, page, out_file.name, revision,
-        )
-        return {
-            "file": str(out_file),
-            "key": key,
-            "revision": revision,
-            "mtime": cached_mtime,
-            "src_mtime": src_mtime,
-            "src_mtime_ns": src_mtime_ns,
-            "cached": True,
-            "bytes": out_file.read_bytes(),
-        }
+        if _is_blank_png(out_file):
+            logger.warning(
+                "render_and_cache_preview: cached preview is blank; "
+                "discarding %s and re-rendering",
+                out_file,
+            )
+            try:
+                out_file.unlink()
+            except Exception:
+                pass
+        else:
+            cached_mtime = int(out_file.stat().st_mtime)
+            logger.debug(
+                "render_and_cache_preview: cache hit for %s page %d (%s, rev=%s)",
+                src.name, page, out_file.name, revision,
+            )
+            return {
+                "file": str(out_file),
+                "key": key,
+                "revision": revision,
+                "mtime": cached_mtime,
+                "src_mtime": src_mtime,
+                "src_mtime_ns": src_mtime_ns,
+                "cached": True,
+                "bytes": out_file.read_bytes(),
+            }
 
     render_scale = scale if scale is not None else _PREVIEW_RENDER_SCALE
     try:

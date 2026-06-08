@@ -1,4 +1,5249 @@
 {
+  "ComputerVision/CV_三维点云感知技术路线图.vsdx": {
+    "name": "ComputerVision/CV_三维点云感知技术路线图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 13,
+      "Parallelogram": 3
+    },
+    "shape_total": 16,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 11,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.291007",
+    "pages": 1,
+    "sample_texts": [
+      "LiDAR 点云",
+      "相机图像",
+      "时空同步\n标定",
+      "点云编码\nVoxel / Point",
+      "图像特征\nBackbone",
+      "多模态融合\nBEV / Attention",
+      "检测 / 分割\n3D Head",
+      "数据增强",
+      "旋转 / 缩放 / GT 采样",
+      "训练目标"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 13,
+            "Parallelogram": 3
+          },
+          "total": 16
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 16,
+      "edge_count": 9,
+      "connector_types": {
+        "Connector": 9
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "12",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "6",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "7",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "15",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "18",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "21",
+          "connector_id": "23",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "24",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 1.6363636363636365
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 4,
+      "branching_factor": 1.8,
+      "description": "层级树状结构，16个节点，9个连接，最大深度4，平均分支1.8"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，水平对齐"
+    }
+  },
+  "ComputerVision/CV_医学影像分析技术路线图.vsdx": {
+    "name": "ComputerVision/CV_医学影像分析技术路线图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 24
+    },
+    "shape_total": 26,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 28,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.404394",
+    "pages": 1,
+    "sample_texts": [
+      "数据\n来源",
+      "CT / MRI / 超声",
+      "病理切片",
+      "临床标签",
+      "伦理脱敏",
+      "预处理",
+      "格式转换\nDICOM / NIfTI",
+      "窗宽窗位 / 归一化",
+      "ROI 裁剪",
+      "标注质控"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 24
+          },
+          "total": 26
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 26,
+      "edge_count": 28,
+      "connector_types": {
+        "Connector": 28
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "7",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "12",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "14",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "22",
+          "to": "23",
+          "connector_id": "24",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "23",
+          "to": "25",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "27",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "22",
+          "connector_id": "29",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "23",
+          "connector_id": "30",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "25",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "33",
+          "to": "34",
+          "connector_id": "35",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "34",
+          "to": "36",
+          "connector_id": "37",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "36",
+          "to": "38",
+          "connector_id": "39",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "32",
+          "to": "33",
+          "connector_id": "40",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.24
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 9,
+      "branching_factor": 1.4,
+      "description": "层级树状结构，26个节点，28个连接，最大深度9，平均分支1.4"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "left_to_right",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，从左到右，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_图像分类实验流程图.vsdx": {
+    "name": "ComputerVision/CV_图像分类实验流程图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 22,
+      "Parallelogram": 2
+    },
+    "shape_total": 24,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 11,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.495598",
+    "pages": 1,
+    "sample_texts": [
+      "研究问题\n/ 类别定义",
+      "数据收集\n与清洗",
+      "训练 / 验证 / 测试划分",
+      "预处理\n归一化增强",
+      "分类模型\nCNN / ViT",
+      "训练策略\n优化器 / 调参",
+      "性能评估\nAcc / F1 / AUC",
+      "结果分析\n混淆矩阵 / CAM",
+      "类别均衡\n/ 采样策略",
+      "迁移学习\n/ 预训练权重"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 22,
+            "Parallelogram": 2
+          },
+          "total": 24
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 24,
+      "edge_count": 7,
+      "connector_types": {
+        "Connector": 7
+      },
+      "edge_samples": [
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "10",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "17",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "17",
+          "to": "18",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "16",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "18",
+          "to": "12",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 1.75
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 5,
+      "branching_factor": 1.17,
+      "description": "混合型结构，24个节点，7个连接，最大深度5，平均分支1.2"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "left_to_right",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，从左到右，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_复杂研究内容框架_细胞实验风格版.vsdx": {
+    "name": "ComputerVision/CV_复杂研究内容框架_细胞实验风格版",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 15,
+      "Parallelogram": 3
+    },
+    "shape_total": 18,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 16,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.553819",
+    "pages": 1,
+    "sample_texts": [
+      "研究目标\n复杂 CV 任务",
+      "任务一\n数据与标注",
+      "任务二\n方法设计",
+      "任务三\n实验评估",
+      "任务四\n部署与应用",
+      "数据采集",
+      "清洗增强",
+      "难例挖掘",
+      "主干网络",
+      "融合模块"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 15,
+            "Parallelogram": 3
+          },
+          "total": 18
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 18,
+      "edge_count": 16,
+      "connector_types": {
+        "Connector": 16
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "3",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "10",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "18",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "18",
+          "to": "20",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "22",
+          "connector_id": "23",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "22",
+          "to": "24",
+          "connector_id": "25",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "26",
+          "connector_id": "27",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "28",
+          "connector_id": "29",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "28",
+          "to": "30",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "30",
+          "to": "32",
+          "connector_id": "33",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 4,
+        "avg_degree": 1.8823529411764706
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 5,
+      "branching_factor": 1.23,
+      "description": "混合型结构，18个节点，16个连接，最大深度5，平均分支1.2"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_多模态医学视觉大模型研究框架.vsdx": {
+    "name": "ComputerVision/CV_多模态医学视觉大模型研究框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 10,
+      "Parallelogram": 2
+    },
+    "shape_total": 12,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 10,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.604256",
+    "pages": 1,
+    "sample_texts": [
+      "医学图像\nCT / X-ray",
+      "报告 / 病历\n文本",
+      "视觉编码器",
+      "医疗语言模型",
+      "医学知识对齐\nInstruction Tuning",
+      "跨模态推理\nDiagnosis / VQA",
+      "输出",
+      "报告生成",
+      "病灶描述",
+      "临床问答"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 10,
+            "Parallelogram": 2
+          },
+          "total": 12
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 12,
+      "edge_count": 10,
+      "connector_types": {
+        "Connector": 10
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "3",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "10",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "5",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "6",
+          "connector_id": "12",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "7",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "18",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "20",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 4,
+        "avg_degree": 1.8181818181818181
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 6,
+      "branching_factor": 1.43,
+      "description": "层级树状结构，12个节点，10个连接，最大深度6，平均分支1.4"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_工业异常检测与缺陷定位流程图.vsdx": {
+    "name": "ComputerVision/CV_工业异常检测与缺陷定位流程图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 19
+    },
+    "shape_total": 21,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 28,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.680918",
+    "pages": 1,
+    "sample_texts": [
+      "数据",
+      "正常样本库",
+      "少量缺陷样本",
+      "采集工位",
+      "光照 / 相机设置",
+      "建模",
+      "重建模型\nAE / VAE",
+      "特征模型\nPatchCore",
+      "蒸馏模型",
+      "多尺度金字塔"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 19
+          },
+          "total": 21
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 21,
+      "edge_count": 28,
+      "connector_types": {
+        "Connector": 28
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "7",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "11",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "12",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "14",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "16",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "25",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "27",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "27",
+          "to": "29",
+          "connector_id": "30",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "23",
+          "to": "24",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "24",
+          "connector_id": "32",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "25",
+          "connector_id": "33",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "27",
+          "connector_id": "34",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "29",
+          "connector_id": "35",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.8
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 8,
+      "branching_factor": 1.47,
+      "description": "层级树状结构，21个节点，28个连接，最大深度8，平均分支1.5"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_开放世界视频理解与事件检测框架.vsdx": {
+    "name": "ComputerVision/CV_开放世界视频理解与事件检测框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 11
+    },
+    "shape_total": 13,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 9,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.745228",
+    "pages": 1,
+    "sample_texts": [
+      "长视频输入",
+      "切片 / 采样\nTemporal Sampling",
+      "视觉编码器\n2D / 3D Backbone",
+      "时序建模\nTransformer / TCN",
+      "事件查询\n文本 / Prototype",
+      "开放世界检测\n识别 + 定位",
+      "记忆库 / 原型库",
+      "未知事件发现",
+      "mAP / Recall",
+      "Few-shot / Zero-shot"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 11
+          },
+          "total": 13
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 13,
+      "edge_count": 7,
+      "connector_types": {
+        "Connector": 7
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "12",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "12",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "13",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "13",
+          "to": "10",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.0
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 6,
+      "branching_factor": 1.17,
+      "description": "混合型结构，13个节点，7个连接，最大深度6，平均分支1.2"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_开放词汇目标检测与零样本识别框架.vsdx": {
+    "name": "ComputerVision/CV_开放词汇目标检测与零样本识别框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 4,
+      "Rectangle": 9
+    },
+    "shape_total": 13,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 10,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.790072",
+    "pages": 1,
+    "sample_texts": [
+      "图像输入",
+      "视觉编码器\nViT / CNN",
+      "区域提议\nRPN / Queries",
+      "区域特征\nPooling / Decoder",
+      "检测输出\nBoxes / Scores",
+      "类别词表\nClass Names",
+      "文本编码器\nPrompt Encoder",
+      "视觉-文本对齐\nSimilarity",
+      "零样本分类\nOpen-set Output",
+      "训练：图文对比学习"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 4,
+            "Rectangle": 9
+          },
+          "total": 13
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 13,
+      "edge_count": 9,
+      "connector_types": {
+        "Connector": 9
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "13",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "12",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "12",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "13",
+          "to": "8",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 3,
+        "max_out": 2,
+        "avg_degree": 2.25
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 5,
+      "branching_factor": 1.29,
+      "description": "混合型结构，13个节点，9个连接，最大深度5，平均分支1.3"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_扩散模型图像生成实验框架.vsdx": {
+    "name": "ComputerVision/CV_扩散模型图像生成实验框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "branching",
+      "chart",
+      "choice",
+      "comprehensive",
+      "condition",
+      "data",
+      "decision",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 9,
+      "Diamond": 1
+    },
+    "shape_total": 12,
+    "shape_types": [
+      "Diamond",
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 8,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.830300",
+    "pages": 1,
+    "sample_texts": [
+      "图像数据 / 文本\n训练集",
+      "加噪前向过程\nq(x_t|x_0)",
+      "U-Net / DiT\n噪声预测器",
+      "反向采样过程\np(x_{t-1}|x_t)",
+      "生成结果",
+      "条件输入\nText / Class / Mask",
+      "Cross-Attention\nConditioning",
+      "采样策略\nDDIM / CFG",
+      "训练损失：MSE / v-pred",
+      "评估：FID / CLIPScore"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 9,
+            "Diamond": 1
+          },
+          "total": 12
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 12,
+      "edge_count": 8,
+      "connector_types": {
+        "Connector": 8
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "4",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "5",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "3",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "4",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.0
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 5,
+      "branching_factor": 1.14,
+      "description": "混合型结构，12个节点，8个连接，最大深度5，平均分支1.1"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_数据集构建与标注规范流程图.vsdx": {
+    "name": "ComputerVision/CV_数据集构建与标注规范流程图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 23,
+      "Parallelogram": 3
+    },
+    "shape_total": 26,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 24,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:45.935512",
+    "pages": 1,
+    "sample_texts": [
+      "采集",
+      "采集计划",
+      "设备 / 场景覆盖",
+      "隐私脱敏",
+      "原始库归档",
+      "清洗",
+      "去重 / 模糊过滤",
+      "异常样本剔除",
+      "类别初筛",
+      "样本统计"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 23,
+            "Parallelogram": 3
+          },
+          "total": 26
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 26,
+      "edge_count": 24,
+      "connector_types": {
+        "Connector": 24
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "7",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "11",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "22",
+          "connector_id": "23",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "22",
+          "to": "24",
+          "connector_id": "25",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "26",
+          "connector_id": "27",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "20",
+          "to": "21",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "21",
+          "connector_id": "29",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "31",
+          "to": "32",
+          "connector_id": "33",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "32",
+          "to": "34",
+          "connector_id": "35",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "34",
+          "to": "36",
+          "connector_id": "37",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "30",
+          "to": "31",
+          "connector_id": "38",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "26",
+          "to": "31",
+          "connector_id": "39",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "41",
+          "to": "42",
+          "connector_id": "43",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 1,
+        "avg_degree": 1.92
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 21,
+      "branching_factor": 1.0,
+      "description": "混合型结构，26个节点，24个连接，最大深度21"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "left_to_right",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，从左到右，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_模型轻量化与边缘部署流程图.vsdx": {
+    "name": "ComputerVision/CV_模型轻量化与边缘部署流程图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 14,
+      "Parallelogram": 3
+    },
+    "shape_total": 17,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 12,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.004600",
+    "pages": 1,
+    "sample_texts": [
+      "基线模型\n精度 / 速度",
+      "剪枝\n结构化 / 非结构化",
+      "量化\nINT8 / FP16",
+      "蒸馏\nTeacher-Student",
+      "格式转换\nONNX / TensorRT",
+      "边缘设备\nJetson / ARM",
+      "在线监控\n日志 / 漂移",
+      "约束",
+      "显存 / 功耗 / 延迟",
+      "性能"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 14,
+            "Parallelogram": 3
+          },
+          "total": 17
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 17,
+      "edge_count": 9,
+      "connector_types": {
+        "Connector": 9
+      },
+      "edge_samples": [
+        {
+          "from": "6",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "10",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "14",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "17",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "20",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "23",
+          "connector_id": "25",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "26",
+          "connector_id": "27",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "26",
+          "to": "2",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 2,
+        "avg_degree": 1.6363636363636365
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.29,
+      "description": "混合型结构，17个节点，9个连接，最大深度7，平均分支1.3"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_深度学习训练评估闭环模板.vsdx": {
+    "name": "ComputerVision/CV_深度学习训练评估闭环模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 10
+    },
+    "shape_total": 12,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 11,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.047313",
+    "pages": 1,
+    "sample_texts": [
+      "数据加载\nDataset / DataLoader",
+      "前向传播\nModel Forward",
+      "损失计算\nLoss Function",
+      "反向传播\nOptimizer",
+      "验证评估\nMetrics",
+      "误差分析\nFP / FN / Hard Case",
+      "策略更新\n增强 / 采样 / 结构",
+      "权重保存\nCheckpoint",
+      "日志记录\nTensorBoard / W&B",
+      "超参搜索\nLR / Batch / Epoch"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 10
+          },
+          "total": 12
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 12,
+      "edge_count": 11,
+      "connector_types": {
+        "Connector": 11
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "10",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "4",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "5",
+          "connector_id": "12",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "6",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "7",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "8",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "1",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "17",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "19",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "21",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 4,
+        "avg_degree": 2.0
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "network",
+      "has_cycles": true,
+      "max_depth": 11,
+      "branching_factor": 1.38,
+      "description": "网状结构，12个节点，11个连接，最大深度11，平均分支1.4，包含循环"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "left_to_right",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，从左到右，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_渲染风格模板_目标检测技术路线_标准.vsdx": {
+    "name": "ComputerVision/CV_渲染风格模板_目标检测技术路线_标准",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 5,
+      "Rectangle": 21
+    },
+    "shape_total": 26,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 36,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.159845",
+    "pages": 1,
+    "sample_texts": [
+      "数据\n准备",
+      "道路监控图像",
+      "行车记录仪图像",
+      "公开交通数据集",
+      "类别体系 / 标注规范",
+      "数据\n处理",
+      "图像清洗",
+      "尺寸归一化",
+      "数据增强",
+      "训练 / 验证 / 测试划分"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 5,
+            "Rectangle": 21
+          },
+          "total": 26
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 26,
+      "edge_count": 36,
+      "connector_types": {
+        "Connector": 36
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "7",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "11",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "12",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "14",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "16",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "25",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "27",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "27",
+          "to": "29",
+          "connector_id": "30",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "23",
+          "to": "24",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "24",
+          "connector_id": "32",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "25",
+          "connector_id": "33",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "27",
+          "connector_id": "34",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "29",
+          "connector_id": "35",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.88
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 9,
+      "branching_factor": 1.5,
+      "description": "层级树状结构，26个节点，36个连接，最大深度9，平均分支1.5"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_渲染风格模板_目标检测技术路线_紧凑.vsdx": {
+    "name": "ComputerVision/CV_渲染风格模板_目标检测技术路线_紧凑",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 5,
+      "Rectangle": 22
+    },
+    "shape_total": 27,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 36,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.283026",
+    "pages": 1,
+    "sample_texts": [
+      "数据\n准备",
+      "道路监控图像",
+      "行车记录仪图像",
+      "公开交通数据集",
+      "类别体系 / 标注规范",
+      "数据\n处理",
+      "图像清洗",
+      "尺寸归一化",
+      "数据增强",
+      "训练 / 验证 / 测试划分"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 5,
+            "Rectangle": 22
+          },
+          "total": 27
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 27,
+      "edge_count": 36,
+      "connector_types": {
+        "Connector": 36
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "7",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "11",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "12",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "14",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "16",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "25",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "27",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "27",
+          "to": "29",
+          "connector_id": "30",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "23",
+          "to": "24",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "24",
+          "connector_id": "32",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "25",
+          "connector_id": "33",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "27",
+          "connector_id": "34",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "29",
+          "connector_id": "35",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.88
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 9,
+      "branching_factor": 1.5,
+      "description": "层级树状结构，27个节点，36个连接，最大深度9，平均分支1.5"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_目标检测全流程信息图模板.vsdx": {
+    "name": "ComputerVision/CV_目标检测全流程信息图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 42,
+      "Parallelogram": 7
+    },
+    "shape_total": 49,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 35,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.563535",
+    "pages": 1,
+    "sample_texts": [
+      "目标检测全流程信息图模板（图示风格，可直接替换文字 / 图片占位）",
+      "数据采集",
+      "图片占位\n道路监控图像",
+      "图片占位\n行车记录仪图像",
+      "图标占位\n公开交通数据集\n(BDD100K / KITTI / COCO 等)",
+      "数据处理",
+      "图标占位\n图像清洗\n(去模糊 / 去噪 / 去重复)",
+      "图标占位\n尺寸归一化\n(统一大小)",
+      "图标占位\n数据增强\n(翻转 / 旋转 / 裁剪 / 对比度等)",
+      "图标占位\n数据划分\n训练 / 验证 / 测试"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 42,
+            "Parallelogram": 7
+          },
+          "total": 49
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 57,
+      "edge_count": 6,
+      "connector_types": {
+        "Connector": 6
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "10",
+          "connector_id": "70",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "20",
+          "connector_id": "71",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "20",
+          "to": "28",
+          "connector_id": "72",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "28",
+          "to": "38",
+          "connector_id": "73",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "38",
+          "to": "50",
+          "connector_id": "74",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "50",
+          "to": "60",
+          "connector_id": "75",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 1,
+        "avg_degree": 1.7142857142857142
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "linear_chain",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.0,
+      "description": "线性链式结构，57个节点，6个连接，最大深度7"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_目标检测系统技术路线图.vsdx": {
+    "name": "ComputerVision/CV_目标检测系统技术路线图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 5,
+      "Rectangle": 21
+    },
+    "shape_total": 26,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 36,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.680869",
+    "pages": 1,
+    "sample_texts": [
+      "数据\n准备",
+      "道路监控图像",
+      "行车记录仪图像",
+      "公开交通数据集",
+      "类别体系 / 标注规范",
+      "数据\n处理",
+      "图像清洗",
+      "尺寸归一化",
+      "数据增强",
+      "训练 / 验证 / 测试划分"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 5,
+            "Rectangle": 21
+          },
+          "total": 26
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 26,
+      "edge_count": 36,
+      "connector_types": {
+        "Connector": 36
+      },
+      "edge_samples": [
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "6",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "7",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "11",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "11",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "12",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "14",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "16",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "25",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "27",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "27",
+          "to": "29",
+          "connector_id": "30",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "23",
+          "to": "24",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "24",
+          "connector_id": "32",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "25",
+          "connector_id": "33",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "27",
+          "connector_id": "34",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "16",
+          "to": "29",
+          "connector_id": "35",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.88
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 9,
+      "branching_factor": 1.5,
+      "description": "层级树状结构，26个节点，36个连接，最大深度9，平均分支1.5"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_神经网络模型结构示意图模板.vsdx": {
+    "name": "ComputerVision/CV_神经网络模型结构示意图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 12
+    },
+    "shape_total": 14,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 15,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.733351",
+    "pages": 1,
+    "sample_texts": [
+      "Input\nImage",
+      "Stem\nConv + BN",
+      "Stage 1\nFeature C2",
+      "Stage 2\nFeature C3",
+      "Stage 3\nFeature C4",
+      "Stage 4\nFeature C5",
+      "Neck：FPN / PAN / BiFPN 特征融合",
+      "Cls Head\n类别分支",
+      "Reg Head\n定位分支",
+      "Aux Head\n辅助监督"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 12
+          },
+          "total": 14
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 14,
+      "edge_count": 15,
+      "connector_types": {
+        "Connector": 15
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "3",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "10",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "12",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "12",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "12",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "12",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "17",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "19",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "21",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "17",
+          "to": "23",
+          "connector_id": "24",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "19",
+          "to": "25",
+          "connector_id": "26",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "27",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 4,
+        "max_out": 3,
+        "avg_degree": 2.3076923076923075
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "star",
+      "has_cycles": false,
+      "max_depth": 6,
+      "branching_factor": 1.5,
+      "description": "星型结构，14个节点，15个连接，最大深度6，平均分支1.5"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，水平对齐"
+    }
+  },
+  "ComputerVision/CV_神经辐射场与三维重建流程图.vsdx": {
+    "name": "ComputerVision/CV_神经辐射场与三维重建流程图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "begin",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "end",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "start",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 9,
+      "RoundedRectangle": 1,
+      "Parallelogram": 1
+    },
+    "shape_total": 11,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle",
+      "RoundedRectangle"
+    ],
+    "total_connectors": 9,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.779923",
+    "pages": 1,
+    "sample_texts": [
+      "多视角图像\n+ 相机位姿",
+      "射线采样\nRay Sampling",
+      "位置编码\nPositional Encoding",
+      "MLP / Field\nσ, RGB",
+      "体渲染\nVolume Rendering",
+      "新视角合成\n/ 3D 重建",
+      "分层采样",
+      "粗 / 细网络",
+      "颜色损失 / 深度正则",
+      "网格提取 / TSDF"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 9,
+            "RoundedRectangle": 1,
+            "Parallelogram": 1
+          },
+          "total": 11
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 11,
+      "edge_count": 8,
+      "connector_types": {
+        "Connector": 8
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "3",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "2",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "13",
+          "to": "6",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "14",
+          "to": "8",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "15",
+          "to": "10",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 1,
+        "avg_degree": 1.6
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 5,
+      "branching_factor": 1.0,
+      "description": "混合型结构，11个节点，8个连接，最大深度5"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，水平对齐"
+    }
+  },
+  "ComputerVision/CV_科研论文实验设计框架.vsdx": {
+    "name": "ComputerVision/CV_科研论文实验设计框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 10,
+      "Parallelogram": 7
+    },
+    "shape_total": 17,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 13,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.846497",
+    "pages": 1,
+    "sample_texts": [
+      "核心方法\nProposed Method",
+      "主实验\nSOTA 对比",
+      "消融实验\n模块贡献",
+      "泛化实验\n跨数据集",
+      "复杂度分析\nParams / FLOPs / FPS",
+      "可视化分析\n热图 / 失败案例",
+      "实验输入",
+      "数据集 A",
+      "数据集 B",
+      "公开 Benchmark"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 10,
+            "Parallelogram": 7
+          },
+          "total": 17
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 17,
+      "edge_count": 13,
+      "connector_types": {
+        "Connector": 13
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "3",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "10",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "13",
+          "to": "1",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "15",
+          "to": "1",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "17",
+          "to": "1",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "19",
+          "to": "1",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "22",
+          "connector_id": "23",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "24",
+          "connector_id": "25",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "26",
+          "connector_id": "27",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "28",
+          "connector_id": "29",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 4,
+        "max_out": 5,
+        "avg_degree": 1.8571428571428572
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "star",
+      "has_cycles": false,
+      "max_depth": 4,
+      "branching_factor": 1.44,
+      "description": "星型结构，17个节点，13个连接，最大深度4，平均分支1.4"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_自动驾驶BEV多传感器融合技术路线图.vsdx": {
+    "name": "ComputerVision/CV_自动驾驶BEV多传感器融合技术路线图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "plan",
+      "process",
+      "step",
+      "task",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 9,
+      "Parallelogram": 2
+    },
+    "shape_total": 11,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 7,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:46.894947",
+    "pages": 1,
+    "sample_texts": [
+      "多相机图像",
+      "LiDAR 点云",
+      "时空同步 / 标定",
+      "图像编码\nLift-Splat",
+      "点云编码\nBEV Encoder",
+      "BEV 融合\nAttention / Fusion",
+      "检测 / 规划\n输出",
+      "HD Map / Occupancy",
+      "Lane / Box / Motion",
+      "NDS / mAP / Planning"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 9,
+            "Parallelogram": 2
+          },
+          "total": 11
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 11,
+      "edge_count": 7,
+      "connector_types": {
+        "Connector": 7
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "3",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "4",
+          "connector_id": "10",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "12",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "6",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "7",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 2,
+        "avg_degree": 2.0
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 5,
+      "branching_factor": 1.17,
+      "description": "混合型结构，11个节点，7个连接，最大深度5，平均分支1.2"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_自动驾驶BEV感知全流程信息图模板.vsdx": {
+    "name": "ComputerVision/CV_自动驾驶BEV感知全流程信息图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 42,
+      "Parallelogram": 7
+    },
+    "shape_total": 49,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 35,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.151386",
+    "pages": 1,
+    "sample_texts": [
+      "自动驾驶 BEV 感知全流程信息图模板（图示风格版）",
+      "数据采集",
+      "图片占位\n多相机图像",
+      "图片占位\nLiDAR / Radar",
+      "图标占位\n自动驾驶数据集\n(nuScenes / Waymo 等)",
+      "数据处理",
+      "图标占位\n同步与标定\n(时空对齐)",
+      "图标占位\nBEV 预处理\n(坐标变换)",
+      "图标占位\n数据增强\n(旋转 / 缩放 / 采样)",
+      "图标占位\n数据划分\n训练 / 验证 / 测试"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 42,
+            "Parallelogram": 7
+          },
+          "total": 49
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 57,
+      "edge_count": 6,
+      "connector_types": {
+        "Connector": 6
+      },
+      "edge_samples": [
+        {
+          "from": "3",
+          "to": "11",
+          "connector_id": "70",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "21",
+          "connector_id": "71",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "29",
+          "connector_id": "72",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "29",
+          "to": "39",
+          "connector_id": "73",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "39",
+          "to": "51",
+          "connector_id": "74",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "51",
+          "to": "61",
+          "connector_id": "75",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 1,
+        "avg_degree": 1.7142857142857142
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "linear_chain",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.0,
+      "description": "线性链式结构，57个节点，6个连接，最大深度7"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_自监督视觉预训练技术路线图.vsdx": {
+    "name": "ComputerVision/CV_自监督视觉预训练技术路线图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 10
+    },
+    "shape_total": 12,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 11,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.208172",
+    "pages": 1,
+    "sample_texts": [
+      "无标注图像\n数据池",
+      "视图增强 A",
+      "视图增强 B",
+      "Encoder / Student",
+      "Target / Teacher",
+      "对比 / 重建\n自监督损失",
+      "线性探测\n下游迁移",
+      "MoCo / SimCLR",
+      "BYOL / DINO",
+      "MAE / Masked Modeling"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 10
+          },
+          "total": 12
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 12,
+      "edge_count": 11,
+      "connector_types": {
+        "Connector": 11
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "3",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "10",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "12",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "6",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "7",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "15",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "17",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "19",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "21",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 4,
+        "avg_degree": 2.0
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "star",
+      "has_cycles": false,
+      "max_depth": 6,
+      "branching_factor": 1.57,
+      "description": "星型结构，12个节点，11个连接，最大深度6，平均分支1.6"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_视觉SLAM与三维建图技术路线图.vsdx": {
+    "name": "ComputerVision/CV_视觉SLAM与三维建图技术路线图",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 2,
+      "Rectangle": 11
+    },
+    "shape_total": 13,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 13,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.250341",
+    "pages": 1,
+    "sample_texts": [
+      "相机 / IMU\n传感器输入",
+      "前端跟踪\n特征 / 直接法",
+      "视觉里程计\n位姿估计",
+      "关键帧管理",
+      "后端优化\nBA / Pose Graph",
+      "稠密 / 稀疏地图",
+      "回环检测\nPlace Recognition",
+      "重定位\nMap Reuse",
+      "ATE / RPE",
+      "轨迹可视化"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 2,
+            "Rectangle": 11
+          },
+          "total": 13
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 13,
+      "edge_count": 13,
+      "connector_types": {
+        "Connector": 13
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "3",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "6",
+          "connector_id": "7",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "8",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "10",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "12",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "12",
+          "to": "8",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "10",
+          "to": "13",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "13",
+          "to": "6",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "18",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "20",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "22",
+          "connector_id": "23",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "24",
+          "connector_id": "25",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 3,
+        "avg_degree": 2.1666666666666665
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "network",
+      "has_cycles": true,
+      "max_depth": 7,
+      "branching_factor": 1.62,
+      "description": "网状结构，13个节点，13个连接，最大深度7，平均分支1.6，包含循环"
+    },
+    "layout_pattern": {
+      "pattern_type": "grid_layout",
+      "primary_direction": "mixed",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "网格布局，混合方向，水平对齐"
+    }
+  },
+  "ComputerVision/CV_视觉语言多模态模型框架.vsdx": {
+    "name": "ComputerVision/CV_视觉语言多模态模型框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Parallelogram": 4,
+      "Rectangle": 13
+    },
+    "shape_total": 17,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 14,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.315102",
+    "pages": 1,
+    "sample_texts": [
+      "图像 / 视频\n输入",
+      "文本 / Prompt\n输入",
+      "视觉编码器\nCNN / ViT",
+      "文本编码器\nBERT / LLM",
+      "跨模态对齐\nContrastive Loss",
+      "融合模块\nCross-Attention",
+      "下游任务\n预测输出",
+      "图文检索",
+      "视觉问答",
+      "图像描述"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Parallelogram": 4,
+            "Rectangle": 13
+          },
+          "total": 17
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 17,
+      "edge_count": 11,
+      "connector_types": {
+        "Connector": 11
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "3",
+          "connector_id": "8",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "4",
+          "connector_id": "9",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "3",
+          "to": "5",
+          "connector_id": "10",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "4",
+          "to": "5",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "5",
+          "to": "6",
+          "connector_id": "12",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "6",
+          "to": "7",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "14",
+          "connector_id": "15",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "16",
+          "connector_id": "17",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "18",
+          "connector_id": "19",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "20",
+          "connector_id": "21",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "22",
+          "connector_id": "23",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 2,
+        "max_out": 5,
+        "avg_degree": 1.8333333333333333
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hierarchical_tree",
+      "has_cycles": false,
+      "max_depth": 6,
+      "branching_factor": 1.57,
+      "description": "层级树状结构，17个节点，11个连接，最大深度6，平均分支1.6"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/CV_视觉语言模型VLM全流程信息图模板.vsdx": {
+    "name": "ComputerVision/CV_视觉语言模型VLM全流程信息图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "project",
+      "service",
+      "step",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 41,
+      "Parallelogram": 8
+    },
+    "shape_total": 49,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 35,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.578253",
+    "pages": 1,
+    "sample_texts": [
+      "视觉语言模型 VLM 全流程信息图模板（图示风格版）",
+      "数据构建",
+      "图片占位\n图像 / 视频数据",
+      "图标占位\n指令 / 问答 / 描述",
+      "图标占位\n图文对 / 知识样本\n(多模态语料)",
+      "数据处理",
+      "图标占位\n清洗去重\n(筛噪 / 过滤)",
+      "图标占位\n图像处理\n(Resize / Crop)",
+      "图标占位\nPrompt 模板化\n(指令格式化)",
+      "图标占位\n数据划分\nTrain / Val / Test"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 41,
+            "Parallelogram": 8
+          },
+          "total": 49
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 57,
+      "edge_count": 6,
+      "connector_types": {
+        "Connector": 6
+      },
+      "edge_samples": [
+        {
+          "from": "3",
+          "to": "11",
+          "connector_id": "70",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "21",
+          "connector_id": "71",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "29",
+          "connector_id": "72",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "29",
+          "to": "39",
+          "connector_id": "73",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "39",
+          "to": "51",
+          "connector_id": "74",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "51",
+          "to": "61",
+          "connector_id": "75",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 1,
+        "avg_degree": 1.7142857142857142
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "linear_chain",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.0,
+      "description": "线性链式结构，57个节点，6个连接，最大深度7"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_语义分割全流程信息图模板.vsdx": {
+    "name": "ComputerVision/CV_语义分割全流程信息图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 41,
+      "Parallelogram": 8
+    },
+    "shape_total": 49,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 35,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.846394",
+    "pages": 1,
+    "sample_texts": [
+      "语义分割全流程信息图模板（图示风格版）",
+      "数据采集",
+      "图片占位\n原始图像",
+      "图片占位\n像素级标注 Mask",
+      "图标占位\n公开分割数据集\n(Cityscapes / ADE20K 等)",
+      "数据处理",
+      "图标占位\n图像清洗 / 对齐\n(筛噪 / 去异常)",
+      "图标占位\n尺寸归一化\n(统一分辨率)",
+      "图标占位\n数据增强\n(裁剪 / 翻转 / 颜色扰动)",
+      "图标占位\n数据划分\n训练 / 验证 / 测试"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 41,
+            "Parallelogram": 8
+          },
+          "total": 49
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 57,
+      "edge_count": 6,
+      "connector_types": {
+        "Connector": 6
+      },
+      "edge_samples": [
+        {
+          "from": "3",
+          "to": "11",
+          "connector_id": "70",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "21",
+          "connector_id": "71",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "29",
+          "connector_id": "72",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "29",
+          "to": "39",
+          "connector_id": "73",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "39",
+          "to": "51",
+          "connector_id": "74",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "51",
+          "to": "61",
+          "connector_id": "75",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 1,
+        "avg_degree": 1.7142857142857142
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "linear_chain",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.0,
+      "description": "线性链式结构，57个节点，6个连接，最大深度7"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/CV_语义分割研究框架.vsdx": {
+    "name": "ComputerVision/CV_语义分割研究框架",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 18,
+      "Parallelogram": 2
+    },
+    "shape_total": 20,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 19,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:47.917007",
+    "pages": 1,
+    "sample_texts": [
+      "原始图像",
+      "像素级标注\nMask",
+      "数据增强\n裁剪 / 翻转",
+      "Encoder\nResNet / Swin",
+      "多尺度特征\nFPN / ASPP",
+      "Decoder\n上采样融合",
+      "Seg Head\n类别概率图",
+      "CE Loss",
+      "Dice Loss",
+      "Boundary Loss"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 18,
+            "Parallelogram": 2
+          },
+          "total": 20
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 20,
+      "edge_count": 18,
+      "connector_types": {
+        "Connector": 18
+      },
+      "edge_samples": [
+        {
+          "from": "1",
+          "to": "2",
+          "connector_id": "4",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "connector_id": "5",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "1",
+          "to": "6",
+          "connector_id": "10",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "2",
+          "to": "6",
+          "connector_id": "11",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "7",
+          "to": "8",
+          "connector_id": "13",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "8",
+          "to": "9",
+          "connector_id": "14",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "15",
+          "to": "8",
+          "connector_id": "16",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "17",
+          "to": "8",
+          "connector_id": "18",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "19",
+          "to": "8",
+          "connector_id": "20",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "9",
+          "connector_id": "22",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "23",
+          "to": "24",
+          "connector_id": "28",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "24",
+          "to": "25",
+          "connector_id": "29",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "26",
+          "connector_id": "30",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "26",
+          "to": "27",
+          "connector_id": "31",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "9",
+          "to": "25",
+          "connector_id": "32",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "33",
+          "to": "34",
+          "connector_id": "36",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "34",
+          "to": "35",
+          "connector_id": "37",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "25",
+          "to": "33",
+          "connector_id": "38",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 4,
+        "max_out": 2,
+        "avg_degree": 1.894736842105263
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "hybrid",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.2,
+      "description": "混合型结构，20个节点，18个连接，最大深度7，平均分支1.2"
+    },
+    "layout_pattern": {
+      "pattern_type": "horizontal_flow",
+      "primary_direction": "left_to_right",
+      "alignment": "horizontal_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "水平流程，从左到右，水平对齐"
+    }
+  },
+  "ComputerVision/LLM_RAG检索增强生成系统信息图模板.vsdx": {
+    "name": "ComputerVision/LLM_RAG检索增强生成系统信息图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "user",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 45,
+      "Parallelogram": 4
+    },
+    "shape_total": 49,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 35,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:48.177810",
+    "pages": 1,
+    "sample_texts": [
+      "RAG 检索增强生成系统信息图模板（图示风格版）",
+      "知识来源",
+      "图标占位\n文档 / PDF / 网页",
+      "图标占位\n数据库 / FAQ",
+      "图标占位\n结构化业务知识",
+      "索引构建",
+      "图标占位\n清洗切分\n(Chunking)",
+      "图标占位\nEmbedding 向量化",
+      "图标占位\n向量库 / 索引\n(FAISS / Milvus)",
+      "图标占位\n元数据组织\n(Tag / 权限)"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 45,
+            "Parallelogram": 4
+          },
+          "total": 49
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 57,
+      "edge_count": 6,
+      "connector_types": {
+        "Connector": 6
+      },
+      "edge_samples": [
+        {
+          "from": "3",
+          "to": "11",
+          "connector_id": "70",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "21",
+          "connector_id": "71",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "29",
+          "connector_id": "72",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "29",
+          "to": "39",
+          "connector_id": "73",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "39",
+          "to": "51",
+          "connector_id": "74",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "51",
+          "to": "61",
+          "connector_id": "75",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 1,
+        "avg_degree": 1.7142857142857142
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "linear_chain",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.0,
+      "description": "线性链式结构，57个节点，6个连接，最大深度7"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
+  "ComputerVision/LLM_大模型训练与部署全流程信息图模板.vsdx": {
+    "name": "ComputerVision/LLM_大模型训练与部署全流程信息图模板",
+    "category": "computer_vision",
+    "keywords": [
+      "I/O",
+      "action",
+      "chart",
+      "comprehensive",
+      "data",
+      "detailed",
+      "diagram",
+      "graphics",
+      "illustration",
+      "input",
+      "output",
+      "process",
+      "step",
+      "task",
+      "visualization",
+      "ComputerVision",
+      "computer vision",
+      "CV",
+      "计算机视觉",
+      "视觉科研绘图",
+      "视觉模型",
+      "深度学习",
+      "科研流程",
+      "技术路线图",
+      "实验流程图"
+    ],
+    "use_cases": [
+      "General diagramming",
+      "Visual communication",
+      "Concept illustration",
+      "Information visualization",
+      "Documentation",
+      "Process flow documentation",
+      "Structured diagram creation",
+      "计算机视觉科研绘图",
+      "视觉模型结构图",
+      "视觉实验流程图",
+      "技术路线图生成"
+    ],
+    "shapes": {
+      "Rectangle": 42,
+      "Parallelogram": 7
+    },
+    "shape_total": 49,
+    "shape_types": [
+      "Parallelogram",
+      "Rectangle"
+    ],
+    "total_connectors": 35,
+    "complexity": "complex",
+    "scan_date": "2026-05-30T15:11:48.440317",
+    "pages": 1,
+    "sample_texts": [
+      "大模型训练与部署全流程信息图模板（图示风格版）",
+      "数据采集",
+      "图标占位\n通用语料 / 网页数据",
+      "图标占位\n指令 / 对话样本",
+      "图标占位\n代码 / 领域知识库",
+      "数据处理",
+      "图标占位\n清洗去重\n(过滤 / 去脏)",
+      "图标占位\n分词与切片\n(Tokenization)",
+      "图标占位\n模板化构建\n(Prompt / Chat Format)",
+      "图标占位\n数据划分\nTrain / Val / Test"
+    ],
+    "pages_detail": [
+      {
+        "name": "页-1",
+        "groups": [],
+        "ungrouped_shapes": {
+          "shapes": {
+            "Rectangle": 42,
+            "Parallelogram": 7
+          },
+          "total": 49
+        }
+      }
+    ],
+    "connection_graph": {
+      "node_count": 57,
+      "edge_count": 6,
+      "connector_types": {
+        "Connector": 6
+      },
+      "edge_samples": [
+        {
+          "from": "3",
+          "to": "11",
+          "connector_id": "70",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "11",
+          "to": "21",
+          "connector_id": "71",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "21",
+          "to": "29",
+          "connector_id": "72",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "29",
+          "to": "39",
+          "connector_id": "73",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "39",
+          "to": "51",
+          "connector_id": "74",
+          "connector_type": "Connector"
+        },
+        {
+          "from": "51",
+          "to": "61",
+          "connector_id": "75",
+          "connector_type": "Connector"
+        }
+      ],
+      "node_degrees_summary": {
+        "max_in": 1,
+        "max_out": 1,
+        "avg_degree": 1.7142857142857142
+      }
+    },
+    "topology_pattern": {
+      "pattern_type": "linear_chain",
+      "has_cycles": false,
+      "max_depth": 7,
+      "branching_factor": 1.0,
+      "description": "线性链式结构，57个节点，6个连接，最大深度7"
+    },
+    "layout_pattern": {
+      "pattern_type": "vertical_flow",
+      "primary_direction": "top_to_bottom",
+      "alignment": "vertical_aligned",
+      "has_groups": false,
+      "group_count": 0,
+      "description": "垂直流程，从上到下，垂直对齐"
+    }
+  },
   "GIT/GIT Basic – add.vsdx": {
     "name": "GIT/GIT Basic – add",
     "category": "general",

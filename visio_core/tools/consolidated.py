@@ -191,6 +191,51 @@ def _build_search_stencils(visio_tools: "VisioTools") -> Callable:
     return search_stencils
 
 
+def _build_upsert_connector(visio_tools: "VisioTools") -> Callable:
+    """Expose connector upsert with the public port names used in prompts.
+
+    Internally the legacy implementation calls these values glue points. The
+    LLM-facing contract and skills use from_port/to_port, so this adapter keeps
+    the public schema aligned while preserving backward compatibility for older
+    callers that still pass from_glue_point/to_glue_point.
+    """
+
+    def upsert_connector(
+        from_node_key: str,
+        to_node_key: str,
+        label: str = "",
+        router: str = "right_angle",
+        from_port: Optional[str] = None,
+        to_port: Optional[str] = None,
+        from_glue_point: Optional[str] = None,
+        to_glue_point: Optional[str] = None,
+    ) -> str:
+        """Create or update a connector between two node_key shapes.
+
+        Args:
+            from_node_key: Stable key for the source shape.
+            to_node_key: Stable key for the target shape.
+            label: Optional connector label.
+            router: Routing style: ``straight``, ``right_angle``, or ``curved``.
+            from_port: Optional source port: Top, Bottom, Left, Right, Center.
+            to_port: Optional target port: Top, Bottom, Left, Right, Center.
+            from_glue_point: Backward-compatible alias for ``from_port``.
+            to_glue_point: Backward-compatible alias for ``to_port``.
+        """
+        final_from = from_port if from_port is not None else from_glue_point
+        final_to = to_port if to_port is not None else to_glue_point
+        return visio_tools.add_or_update_connector(
+            from_node_key=from_node_key,
+            to_node_key=to_node_key,
+            label=label,
+            routing_style=router,
+            from_glue_point=final_from,
+            to_glue_point=final_to,
+        )
+
+    return upsert_connector
+
+
 def _build_render_page(visio_tools: "VisioTools") -> Callable:
     """Expose page rendering as a single canonical tool.
 
@@ -269,9 +314,21 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
             render_and_cache_preview,
         )
 
-        target = filepath or visio_tools.current_file_path
+        # The preview should represent the active working document. In agent
+        # flows an old filepath can leak in from earlier template inspection,
+        # so prefer the current saved/loaded file whenever one exists.
+        target = visio_tools.current_file_path or filepath
         if not target:
             return "✗ No document open. Call open_document first."
+
+        if getattr(visio_tools, "_has_unsaved_changes", False):
+            try:
+                save_result = visio_tools.save_diagram(target)
+                if str(save_result).lstrip().startswith("✗"):
+                    return f"✗ Render failed while saving pending changes: {save_result}"
+                target = visio_tools.current_file_path or target
+            except Exception as exc:
+                return f"✗ Render failed while saving pending changes: {exc}"
 
         try:
             s = float(scale)
@@ -285,6 +342,11 @@ def _build_render_page(visio_tools: "VisioTools") -> Callable:
             )
         except Exception as exc:
             return f"✗ Render failed: {exc}"
+
+        try:
+            visio_tools.mark_current_output_finalized()
+        except Exception:
+            pass
 
         png_url, viewer_url = _build_links(target, page, result.get("key"))
         viewer_link = f"[Open interactive preview (fit window)]({viewer_url})"
@@ -376,7 +438,7 @@ def get_consolidated_tools(
         _build_render_page(visio_tools),
         # --- mutation (idempotent only) ---
         _rename(visio_tools.add_or_update_shape, "upsert_shape"),
-        _rename(visio_tools.add_or_update_connector, "upsert_connector"),
+        _build_upsert_connector(visio_tools),
         _rename(visio_tools.update_shape_text, "update_text"),
         _rename(visio_tools.remove_shape_smart, "remove_shape"),
         _build_edit_shape(visio_tools),

@@ -197,11 +197,28 @@ def calculate_edge_coordinates(shape: Any, position: GluePointPosition) -> Tuple
     Returns:
         Tuple of (x, y) coordinates in page units (inches)
     """
-    # Get shape geometry
-    pin_x = float(getattr(shape, 'x', 0) or 0)
-    pin_y = float(getattr(shape, 'y', 0) or 0)
-    width = float(getattr(shape, 'width', 1) or 1)
-    height = float(getattr(shape, 'height', 0.75) or 0.75)
+    # Get live shape geometry. The vsdx wrapper's x/y/width/height attrs can
+    # be stale after set_cell_value(), so prefer cells when available.
+    def _cell_float(cell_name: str, attr_name: str, default: float) -> float:
+        try:
+            if hasattr(shape, "cell_value"):
+                value = shape.cell_value(cell_name)
+                if value not in (None, ""):
+                    return float(value)
+        except Exception:
+            pass
+        try:
+            value = getattr(shape, attr_name, None)
+            if value not in (None, ""):
+                return float(value)
+        except Exception:
+            pass
+        return default
+
+    pin_x = _cell_float("PinX", "x", 0.0)
+    pin_y = _cell_float("PinY", "y", 0.0)
+    width = _cell_float("Width", "width", 1.0)
+    height = _cell_float("Height", "height", 0.75)
     
     # Calculate half dimensions
     half_width = width / 2

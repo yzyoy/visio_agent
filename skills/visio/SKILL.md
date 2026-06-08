@@ -40,15 +40,11 @@ exceptions below:
    `open_document(same_path)` before any connector verification. This is
    the diary 11/13 lesson, now enforced at the protocol level through
    the `SAVE_REQUIRES_RELOAD` error code.
-8. **Render and surface preview** — `render_page(page=0, scale=2.0,
-   mode="url")` to confirm. The tool returns **two artefacts in a single
-   reply**: an inline fit-window image *and* a markdown link to the
-   interactive viewer (`/api/visio/preview?path=...`). Both are funnelled
-   through the same `render_and_cache_preview` pipeline as the HTML
-   viewer, so the chat preview is byte-identical to what the user sees
-   when they open the link — never a cropped title bar or half-rendered
-   page. Mode `"data"` inlines the PNG as a base64 data URI for offline
-   replay; it still returns the same interactive viewer link.
+8. **Surface preview link** — by default return the saved `.vsdx` path
+   and the markdown interactive viewer link
+   (`/api/visio/preview?path=...`). Do not call `render_page` or inline a
+   preview image unless the user explicitly asks to see the image in chat.
+   If `render_page` is explicitly requested, forward its full response.
 
 ## 2. Selector conventions
 
@@ -77,11 +73,12 @@ exceptions below:
    authoritative check; `recommend_template` assumes its output is
    clean. See diary `11_4`.
 6. **Never deliver a preview without the interactive link.** A bare
-   inline image is unverifiable — the chat UI may crop the height,
-   compress the title, or fail to load at all. Every preview reply must
-   include the `[name](http://localhost:7777/api/visio/preview?path=...)`
-   link so the user has a guaranteed fit-window, zoomable surface.
-   `render_page` already returns both; forward its full output verbatim.
+   inline image is not the default and may be cropped by chat surfaces.
+   Every preview reply must include the
+   `[name](http://localhost:7777/api/visio/preview?path=...)` link so the
+   user has a guaranteed fit-window, zoomable surface. Only call
+   `render_page` when the user explicitly asks for an inline image; if
+   called, forward its full output verbatim.
 7. **Template deletions may leave stale connector references until cleanup is confirmed.**
    After deleting shapes from a template or partially edited file,
    assume some connectors may still carry deleted `Sheet.<id>` refs.
@@ -92,6 +89,11 @@ exceptions below:
    reconnect_mode="remove_connectors")`; do not use smart reconnection
    unless the user explicitly wants preserved flow. Shared titles,
    containers, and connectors that still serve kept content must remain.
+9. **Chinese requests prefer Chinese, blank, or generic templates.** Do
+   not choose an English industry template merely because its structure
+   is similar. If one must be used, first replace or delete every
+   original English node, title, and label after `analyze_template`; the
+   final Chinese diagram must not retain unrelated industry sample text.
 
 ## 4. Output conventions
 
@@ -104,11 +106,10 @@ exceptions below:
   `[文件名](http://localhost:7777/api/visio/preview?path=<完整路径>)`.
   The link is what gives the user a fully fit-window, zoomable view.
   Forgetting it is a regression — the rendered PNG alone is not enough.
-- **Preview images must be complete.** Always call `render_page` (which
-  uses the `render_and_cache_preview` pipeline) instead of constructing
-  raw `/static/visio/...` URLs by hand. The tool returns both the
-  fit-window inline image and the interactive viewer link in one
-  payload; forward both to the user verbatim.
+- **Preview images are opt-in.** Do not call `render_page` by default.
+  If the user asks for an inline image, call `render_page` instead of
+  constructing raw `/static/visio/...` URLs by hand, and forward the full
+  tool response.
 - Prefer `render_page(mode="url")` for any non-trivial diagram. Only
   fall back to `mode="data"` when the user has explicitly asked for an
   offline / log-replay-friendly response and the diagram is small.
